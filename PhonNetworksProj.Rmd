@@ -1,0 +1,2031 @@
+---
+title: "Phonological Networks and Systematicity in Early Lexical Acquisition"
+author:
+- name: Catherine E. Laing
+  affiliation: '1'
+  corresponding: yes
+  address: Department of Language and Linguistic Science, University of York, Heslington, YO10 5DD.
+  email: catherine.laing@york.ac.uk
+shorttitle: Systematicity in early phonological development
+output:
+  papaja::apa6_pdf: default
+  #extra_dependencies: ["float"]
+  #papaja::apa6_word: default
+abstract: "Infants' early words tend to be phonologically similar to one another. This may reflect a systematic approach to early production, as infants adapt newly-acquired forms to fit the most familiar structures in the output. This reflects a 'rich-get-richer' approach to phonological acquisition, also known as *preferential attachment* in network science, where new words are acquired that are similar to (and therefore connect to) existing highly-connected words in the lexicon (or network). This contrasts with recent network analyses of lexical acquisition (Fourtassi et al., 2020) showing that the learning environment is the key predictor in learning (i.e. *preferential acquisition*). However, previous studies of network growth in early word learning have drawn on norming data taken from thousands of children, which does not capture the expected variability in early phonological development. In this study, phonetic transcriptions of nine infants' word productions were analysed from word onset to age 2;6. Network growth models were generated for each participant to test whether acquisition was best modelled through preferential attachment or preferential aquisition. Results show that both models of growth can explain early acquistion, but the preferential attachment model was more convincing. This suggests that infants' early words are systematically acquired according to their phonological properties, such that newly-acquired words are phonologically similar to existing words in the network.  This approach may help infants address the challenges of word production in early development, when memory, planning and articulatory capacity are simultaneously limited."
+keywords: Systematicity, Phonological development, preferential attachment, networks analysis
+wordcount: 
+bibliography: Systematicity.bib
+floatsintext: yes
+#figsintext: yes
+figurelist: no
+tablelist: no
+footnotelist: no
+linenumbers: yes
+mask: no
+draft: no
+documentclass: apa6
+header-includes:
+-  \DeclareDelayedFloatFlavor{kableExtra}{table}
+- \usepackage{tipa}
+#- \newfontfamily\PF{Arial}
+classoption: man
+affiliation:
+- id: '1'
+  institution: University of York, York, UK
+latex_engine: xelatex
+---
+
+```{r setup, include=FALSE}
+
+source("prelims.R")
+r_refs(file="r-references.bib")
+
+my_citations <- cite_r(
+  file="r-references.bib"
+  , pkgs=c("tidyverse", "igraph", "papaja", "lmerTest")
+  , withhold=FALSE
+  , footnote=TRUE
+)
+
+# load files
+
+globalthresholds_AOP_lyon <- feather::read_feather("Data/globalthresholds_AOP_lyon_25.feather")
+globalthresholds_AOP_providence <- feather::read_feather("Data/globalthresholds_AOP_providence_25.feather")
+globalthresholds_AOP <- rbind(globalthresholds_AOP_lyon, globalthresholds_AOP_providence)
+
+regression_data_lyon <- feather::read_feather("Data/regression_data_lyon.feather")
+regression_data_providence <- feather::read_feather("Data/regression_data_providence.feather")
+regression_data <- rbind(regression_data_lyon, regression_data_providence)
+
+globalsmallworlddata_L <- feather::read_feather("Data/globalsmallworlddata_comparison_lyon.feather") %>% mutate(corpus = "French")
+globalsmallworlddata_P <- feather::read_feather("Data/globalsmallworlddata_comparison_providence.feather") %>% mutate(corpus = "English")
+globalsmallworlddata <- rbind(globalsmallworlddata_P, globalsmallworlddata_L) # remove variables that aren't used
+
+global_distance <- feather::read_feather("Data/global_distance.feather")
+static_preds_all_LN <- feather::read_feather("Data/static_preds_all_LN.feather")
+
+source("PhonologicalNetworks-Figures.R")
+source("PhonologicalNetworks-Tables.R")
+
+stat_sum_df <- function(fun, geom="crossbar", ...) {
+  stat_summary(fun.data=fun, colour="red", geom=geom, width=0.2, ...)
+}
+
+```
+
+Literature spanning decades of work on phonological development has documented the systematic nature of infants' earliest words. Studies of phonetic [@mccune_early_2001] and phonological structures [@vihman_prosodic_2016] show that many of a child's first word forms share similar properties. Infants draw on what they know: when articulatory, memory and planning capacities are simultaneously limited, a "phonic core of remembered lexical items and articulations" [@ferguson_words_1975, p.112] may help them deal with the challenge of developing an early lexicon. Vihman [-@vihman_phonological_2019, p.263] describes the early lexicon as "an emergent network of related forms" that reveals an inherent systematicity in infants' lexical acquisition. A networks approach to phonological development offers one way of identifying systematicity in infants' early forms. In this study, I present a longitudinal analysis of nine infants' lexical development to identify systematicity in the first three years of word production. I consider the phonological characteristics of the developing lexicon using network analysis to demonstrate how early systematicity may be integral to the developing linguistic system, supporting infants to acquire the requisite capacity for flexible, automatic and target-like word production.
+
+Waterson [-@waterson_child_1971] was the first to observe systematic output patterns in early production. In a case study of her son's early words, she noted striking systematicity in his lexicon at 18 months. She details a number of systematic structures, or 'schema', that share common segments and features. For example, he systematically adapts /n/-medial forms including *finger*, *window* and *another* to a reduplicated schema with a palatal nasal stop at syllable onset, [\textipa{\*n}V\textipa{\*n}V]. Waterson posits that schemas come about through the child's perception of salient features in the adult form, which, crucially, are already in the child's own productive repertoire. According to Waterson, schemas relate holistically to the adult target [see also @vihman_phonological_2019], based on salient and reproducible features of the input form.
+
+Since Waterson's landmark study, a rich body of work has developed with the aim of identifying systematic schemas in infants' early words. Most notably, Vihman's [-@vihman_phonological_2014; -@vihman_phonological_2019] work on phonological templates has brought together a wide body of evidence to present a compelling theory of early phonological development. In Vihman's model, the child begins with a small lexicon of phonologically-simple and accurately-produced forms. In this sense, early words tend to look similar across children, with some evidence of ambient language effects [@de_boysson-bardies_adaptation_1991]. Vihman proposes that these early words are 'selected' for their ease of production, as well as their perceptual salience. At first, new words are 'selected' to fit these familiar patterns, but as the lexicon grows, target forms that do not necessarily fit these structures are 'adapted' so that they do. Selection and, later, adaption indicate the presence of systematicity within the developing lexicon. The constraints on infants' production are high - whether for reasons of articulation, memory, planning, perception, or a combination of these - and so they draw on a limited set of vocal outputs that represent a growing number of target words. Essentially, the new target form is allocated to one of a small number of motoric categories, and as these categories increase in size they become further entrenched. For example, in data from their bilingual (English-Spanish) daughter’s early word acquisition, Deuchar and Quay [-@deuchar_bilingual_2000] show that 13 of her first 20 words are produced with a CV structure, and many are phonologically identical: she produces *car*, *clock*, *casa* ‘house’ and *cat* as /ka/, and *papa* ‘daddy’, *pájaro* ‘bird’ and *panda* as /pa/. 
+
+One way of interrogating phonological systematicity in early phonological productions is through network analysis, which offers a quantitative perspective on the organization and development of the lexicon. Developmental research in this area centres around the words that children target in production to establish connectivity on phonological [e.g. @siew_investigation_2020] and semantic [e.g. @hills_longitudinal_2009] planes - that is, how similar pairs of target words are to one another in form or meaning, and what this might mean for acquisition. However, as yet there is no work looking at the way children produce those words; that is, whether or not children are drawing on systematicity in the output. In this context, the term *network* refers to a web of forms (or *nodes*, in network terms) that are interconnected based on shared properties. Here these are phonological properties, but could also be semantic, or indeed non-linguistic properties such as genetic information, social connections or location [see @bell_network_2017, for a review]. Network growth models allow analysis of changes within a system over time, and two key models[^4] of development have been proposed for lexical acquisition: preferential attachment (hereafter **PAT**) and preferential acquisition [hereafter **PAQ**; @hills_longitudinal_2009; see also @steyvers_large-scale_2005-2]. PAT models of network growth propose a rich-get-richer scenario, whereby the most highly-connected nodes (nodes with more *edges*) in the network attract new nodes at any given time-point. In phonological development terms, this model implies that the lexicon will constitute clusters of similar-sounding words, and that a child is more likely to acquire new words that attach to these dense clusters: infants' production of newly-acquired words will be similar to their production of existing words in the lexicon. PAT-like growth is therefore driven by the *internal* linguistic system. On the other hand, PAQ-like growth assumes that forms in the learning environment that connect to (i.e. share properties with) a higher number of *different* nodes in the existing network will be acquired first. PAQ models of network growth thus assume that *external* factors in the learning environment influence acquisition - that is, words that are well-connected to one another within the target language will be acquired earlier. In phonological terms, this would mean that early productions would constitute a more even distribution of segments and structures, resembling the statistical properties of the ambient language more closely, rather than a 'pattern force' driven by dominant segments and structures in the existing lexicon. 
+
+A number of studies have drawn on network growth models to test whether PAT- and PAQ-like growth[^5] can explain lexical development in semantic and phonological networks of acquisition. Hills and colleagues' [-@hills_longitudinal_2009] study of semantic networks showed evidence for PAQ, but not PAT, in associative networks of normed vocabulary acquisition data. Amatuni and Bergelson [-@amatuni_semantic_2017] support this evidence for PAQ-like growth in semantic networks with an analysis of a large-scale corpus of input data, combined with normed productive vocabulary data derived from WordBank [@frank_wordbank_2017]. More recent work has applied these same approaches to phonological data: Fourtassi, Bian and Frank [-@fourtassi_growth_2020] analyse both phonological and semantic network growth from vocabulary norms (receptive and productive) in 10 languages to find consistent evidence in support of PAQ-like growth, for both phonological and semantic networks, receptive and productive vocabularies, and across the 10 languages included in their analysis. In contrast, Siew and Vitevitch [-@siew_investigation_2020] tested phonological networks in acquisition of older Dutch- and English-learning children (age 3-9 years), again using vocabulary norms to indicate age of acquisition for each word. Their analysis revealed contrasting findings for English compared with Dutch, as well as an age effect: PAT-like network growth predicted acquisition in English but not Dutch, whereas both PAT and PAQ (as well as a third model, Lure of the Associates, not discussed here) predicted word learning in Dutch. Regarding the effect of age, PAT was a better predictor of acquisition earlier on in development (i.e. newly-acquired words were likely to attach to densely-connected clusters of similar forms); later on, the opposite was found, whereby later-acquired words tended to be phonologically more distinct (i.e. newly-acquired words were less similar to existing words in the network).
+
+Together these studies present an intersection of evidence for the role of PAT and PAQ network growth in phonological development. However, there are two key aspects of the existing approaches that should be expanded further. First, the consideration of acquisition in terms of only target forms provides no view of systematicity in *production*, which is where systematicity has been most well-documented in naturalistic data. Second, vocabulary norming data abstracts away from the individual differences expected in early phonological development [e.g. @vihman_external_1994]; by drawing on data that generalises across hundreds of different children, it may not be possible to gain a realistic picture of a developing phonological network in the individual, thus making it difficult to test which model of network growth (PAT or PAQ) is most cogent. To better understand the role of systematicity in early word production, it is essential to consider infants' *actual productions* of their early word forms, in terms of both *how* and *when* they produce them. In this paper, I analyse phonological networks of both *target* and *actual forms* (that is, the words children produce, and the way they produce them) produced in naturalistic data from two languages, in order to consider systematicity in early production within the individual development trajectories of nine infants. 
+
+# Hypotheses
+
+Drawing on naturalistic data, this study will use network growth models to capture the phonological connectivity (taken here as an index here of systematicity) within the individual lexicons of nine infants. By drawing on corpus data, the analysis will take into account the individual variability that is observed in models of early development [@vihman_variable_1993], which is not possible to capture in normed vocabulary data. Two sets of networks will be established for each infant: one tracing connections between infants' *actual* word productions, the other between the *target* productions of these forms. Network analysis will quantify systematicity in the developing lexicon via two key network growth frameworks: PAT and PAQ. I will draw on approaches outlined in previous studies [@amatuni_semantic_2017; @fourtassi_growth_2020; @siew_investigation_2020] to test whether naturalistic data of infants' actual productions reveals evidence of systematicity in infants' output forms, such that language development is shaped by infants' existing production knowledge. Specifically, I predict that:
+
+H1) Early phonological networks will show stronger evidence of a PAT-like model of growth over a PAQ-like model, based on evidence from the phonological development literature that shows similarity across individual infants' developing lexicons [e.g. @vihman_emergence_2013].
+
+H2) PAT-like growth will be most evident earlier on in development, as infants select and then adapt words to fit their production capacity [@vihman_phonological_2019]. Later, more variability (i.e. fewer clusters of similar words) is expected as phonological capacity develops.
+
+H3) If PAT-like growth is supported in the data, then this should be more convincing for Actual than Target productions, given that we expect infants to adapt target words to fit the motor routines that are most accessible to them in production. This difference is not expected for a PAQ-like model of network growth, which assumes that network growth reflects connectivity in the input; PAQ thus assumes that Actual and Target networks do not differ.
+
+To test these hypotheses, individual phonological networks will be established for nine infants acquiring American English or French. Phonological distance will be calculated between each word and each other word in each infant's network to establish connectivity within the network. Logistic regression models will determine whether acquisition of *Actual* and *Target* forms reflects PAT- or PAQ-like growth in early phonological development.
+
+
+# Methods
+
+This analysis follows approaches taken by Hills and colleagues [-@hills_longitudinal_2009] and Siew and Vitevitch [-@siew_investigation_2020], by establishing network growth values for each word in each child's lexicon. This is followed up by drawing on approaches taken by Amatuni and Bergelson [-@amatuni_semantic_2017], using simulated data to analyse network properties (see below).
+
+## Data and Materials
+
+Data for this study were extracted from CHILDES [Child Language Data Exchange System, @macwhinney_childes_2000] using Phon [@hedlund_gregory_phon_2020]. Two corpora were selected for the analysis: American English [Providence corpus, @demuth_word-minimality_2006] and French [Lyon corpus, @demuth_katherine_prosodically-conditioned_2008]. These corpora were selected due to their parallel data collection and transcription methods. The English data includes five infants (including two boys[^6]) and four infants from the French corpus (two boys). Both corpora include spontaneous interactions between child and caregiver, recorded in the home for one hour every two weeks from the onset of first words. The corpora were orthographically transcribed, and then phonetically transcribed and checked by trained coders. See Demuth et al. [-@demuth_word-minimality_2006] and Demuth and Tremblay [-@demuth_katherine_prosodically-conditioned_2008] for full details of data collection and annotation.
+
+For the purposes of this analysis, transcripts were extracted from the first session in the dataset (the first session in which the child produced a word) until the final session taken at age 2;6. Words produced in each month were aggregated to give a rolling monthly network of all words produced by each child; the first instance of each word type [i.e. every unique word: *bring* and *bringing* were considered as unique words, though plurals were categorised with their singular nouns; see @jones_children_2019] in each child's full dataset was considered as the first production of that word, and was included in that month's list of newly-acquired words. Later productions of the same word were not included in the dataset. Two of the American infants (Naima and Lily) are reported to have denser data taken at weekly intervals during some periods of data collection, but this is not considered to be an issue for the purposes of this analysis as no between-child comparisons will be conducted. The total network of words at any given month amounts to all the words produced up to and including that month. The phonetic transcription of each word produced by each infant in each session was extracted (*Actual* forms, i.e., the phonological form as produced by the child) alongside its target transcription (*Target* forms). For both Actual and Target forms, phonological distance was calculated between every word and every other word in the cumulative network at each month, following Monaghan, Christiansen, Farmer and Fitneva's [-@monaghan_measures_2010] approach. This is based on phonological features, following Harm and Seidenberg [-@seidenberg_dyslexia_1999] and based on Chomsky and Halle's [-@chomsky_noam_sound_1968] theory of government phonology. This was considered to be the most appropriate measure of phonological distance, as oppose to other established measures such as Levenshtein distance [e.g. @fourtassi_growth_2020; @siew_investigation_2020]: distinctive features allow us to consider distance on a phonologically-appropriate gradient, whereby the difference between words such as *bat* and *pat* is smaller than the difference between *bat* and *rat*. Using edit distance as a measure, *pat*, *bat* and *rat* would be equidistant, thereby equating all phonemes as articulatorily similar, which does not reflect the realities of phonological development [cf. @mcleod_childrens_2018].
+
+```{r total tokens}
+tokens.corpus <- regression_data %>%
+  group_by(corpus, Speaker) %>%
+  distinct(gloss1, .keep_all=T) %>%
+  tally() %>% summarise(n=sum(n))
+
+tokens <- regression_data %>%
+  group_by(Speaker) %>%
+  distinct(gloss1, .keep_all=T) %>%
+  tally() %>% summarise(n=sum(n))
+```
+
+Only words included on the US English and French communicative development inventories [CDIs, @fenson_variability_1994; @kern_sophie_ifdc_2010] were analysed. The final dataset includes `r round(tokens$n)` word types, aggregated across infants (English=`r round(subset(tokens.corpus, corpus == "English")$n)`, French=`r round(subset(tokens.corpus, corpus == "French")$n)`). See Table \@ref(tab:table-data-overview) for a breakdown by corpus and child. 
+
+```{r table-data-overview, echo=F, message=FALSE, warning=FALSE, comment=F}
+cap="Minimum age, number of sessions and number of distinct word types produced by each child in the dataset - an index of each child's global network size. Means and SDs for each corpus are shown in the bottom four rows of the table."
+#apa_table(table.data.overview, caption=cap, col_spanners=NULL, digits=0, placement="H", font_size="small")
+kable(table.data.overview, "latex", booktabs=T, longtable=T, 
+      caption=cap, digits=0, align="c")  %>%
+  kable_styling()%>%
+  row_spec(4, bold=F, hline_after=T) %>%
+  row_spec(5, bold=T, hline_after=F) %>%
+  row_spec(6, bold=T, hline_after=T) %>%
+  #row_spec(7, bold=T,hline_after=T) %>%
+  row_spec(11, bold=F,hline_after=T) %>%
+  row_spec(12, bold=T,hline_after=F) %>%
+  row_spec(13, bold=T,hline_after=T) %>%  
+  row_spec(14, bold=T,hline_after=F) %>%
+  row_spec(15, bold=T,hline_after=F)
+```
+
+## Network Analysis
+
+For each child, two kinds of network were generated: 1) a *global network*, which represents the final network, i.e. all words produced in the data by 2;6. This network includes the Target production of all individual word types produced in the dataset, coded for age of first production. The global network is taken to reflect the learning environment, or the input, which is why only Target forms are included; this will be used to establish PAQ growth values for each word in the data (see below), and also serves as a proxy for the 'end-state' towards which each child's phonological development is directed. 2) A series of 'known' networks representing the lexicon at each month; each monthly known network includes all the words produced upto and including the given month, in either Actual (the infants' realization) or Target (the target realization) form. This series of networks is used to generate PAT values for each word in the data. For both kinds of networks, a given word type was included from the first session in which it occurred. When multiple instances of the same word were produced in a single session (i.e. which might differ from each other phonologically in the child's production), the child's first production of that word was included in the analysis. One important consideration was how to index connectivity within a network: how phonologically similar should two nodes be in order to form an edge? In this study, two nodes were considered to be connected (i.e., formed an edge) if they had a scaled phonological distance lower than 0.25; this value was selected in order to capture the lower quartile of connectivity within the data.
+
+```{r Figure-distance-threshold, eval=FALSE, fig.cap=cap, fig.pos='H', message=FALSE, warning=FALSE, include=FALSE}
+#Add to supplementaries: The distribution of connectivity within each corpus is shown in Figure \@ref(fig:Figure-distance-threshold).
+#par(cex=1.2)
+plot(distance_threshold)
+cap <- sprintf("Density plots showing normed phonological distance between each word and each other word in each child's data. Plots shown Lyon (French) and Providence (US English) corpus data separately. Vertical dashed line shows connectivity threshold for the analysis; all nodes with a normed distance ≤0.25 form an edge in the data.")
+
+```
+
+Once networks were established, PAT and PAQ values were calculated for each word. Following Siew and Vitevitch's [-@siew_investigation_2020] approach, these values were generated by computing, for each month, the likelihood that an as-yet-unknown word would form an edge with known words in the existing network (i.e. the words produced upto and including a given month). The PAT value of a given yet-to-be-learned word represents the mean degree of all the words it would connect to (i.e. the words that have a phonological distance of 0.25 or less) if it were learned in the following month. For example, a word with a PAT value of 5.6 would connect to a set of words in the following month that, on average, connected to 5.6 other words each. Given that PAT assumes that newly-acquired words will connect to already-well-connected words in the existing network, higher PAT values predict learning (i.e. new words will connect to words with higher mean degrees). PAT networks were generated with both Actual and Target forms. PAQ values reflect the degree of a given word in the global network (i.e., all words in a given infant's dataset at 2;6). So a word with a PAQ value of 87 would connect to 87 other words in the global network. Again, as PAQ predicts that well-connected words in the global network would be acquired earlier, higher PAQ values predict earlier learning; in each month, we would expect that words with the highest PAQ values will be acquired in the following month. As PAQ-like growth is assumed to represent the learning environment - that is, the connectivity of words in the ambient language - global networks were established with Target forms only. Note that, as both PAT and PAQ values are established through connectivity in the network (i.e. only words that form an edge with another word are represented), not all words are included in the analysis, as some words did not connect to any other word at a threshold of 0.25.
+
+## Data Analysis
+
+The data were analysed following previous approaches: network growth models [@fourtassi_growth_2020; @siew_investigation_2020; following @hills_longitudinal_2009] simulated networks [@amatuni_semantic_2017]. 
+
+### Network growth models
+Network growth models are logistic regression models that predict whether or not a word was learned in the following month. Here, the binary dependent variable was 1 if the word was learned in the following month, and 0 if it was not. The key predictors of acquisition were PAT/PAQ growth values for each word at each month - the models test the assumption that higher growth values predict learning in the following month. Included in the model as additional fixed effects were frequency of each word in the mothers' input from the respective CHILDES corpus, and word length in phonemes (all variables scaled and centred), as well as age of first production in the child's data (AoP). Subject was included as a random effect with a by-subject random slope for the effect of AoP. Model outputs were generated using model comparisons comparing the model with the variable in question against a null model without the given variable. The English and French data were always modeled separately, as were Target and Actual data, unless otherwise specified. Analysis of Target data includes PAT values for the Target networks, and analysis of Actual data includes PAT values for the Actual networks. PAQ values always represent the Target network only (i.e. the adult production of a given word in the input).
+
+### Simulated networks
+PAT-like networks should exhibit properties of small-world network growth - namely a low mean path length and a high clustering coefficient [@watts_collective_1998; @amaral_classes_2011; @steyvers_large-scale_2005]: words should be more densely connected, with shorter connections between words, especially in earlier development. To test this, mean path length and clustering coefficient values were generated for both the Target and Actual networks, as outlined below. If these variables change in a PAT-like growth trajectory, then we would expect to see no statistical difference between the network being tested and a simulated small-world network of comparable size (note that it is not possible to draw any conclusions about PAQ-like growth with this approach). Data were compared to the growth of a simulated small-world network, known as a Watts-Strogatz network [@watts_collective_1998]; if no differences are observed between the real and simulated data over the trajectory of development, then a PAT-like model of network growth may be present in the data. The real data were also compared to a similarly-sized but randomly-generated network known as a Erdős–Rényi model. If the real network grows in a systematic way, then we would expect the real data to differ significantly from the randomly-generated Erdős–Rényi network. To run these analyses, network graphs were computed for each child at each month in the dataset, such that the network grew cumulatively over time - all words produced in the given month and all previous months were included in each month's network. Mean path length and clustering coefficient were calculated for each graph, and then compared to the two kinds of simulated data, matched for network size: a Watts-Strogatz network (prototypical PAT-like network) and an Erdős–Rényi network (random network).
+
+# Results
+
+### Age of production (AoP) ~ connectivity
+
+```{r aop-degree correlations, message=FALSE, warning=FALSE, include=FALSE}
+
+# shapiro.test(subset(globalthresholds_AOP_lyon, data_type == "target")$degree_z) #not normal
+# shapiro.test(subset(globalthresholds_AOP_lyon, data_type == "actual")$degree_z) #not normal
+# shapiro.test(subset(globalthresholds_AOP_providence, data_type == "target")$degree_z) #not normal
+# shapiro.test(subset(globalthresholds_AOP_providence, data_type == "actual")$degree_z) #not normal
+
+stats.corr.all <- table.aop.deg.corr.speaker %>% summarise(mean_rho=mean(rho),
+                                                      sd_rho=sd(rho))
+
+stats.corr_Providence <- globalthresholds_AOP %>%
+        group_by(Speaker, corpus) %>%
+        summarize(rho=stats::cor.test(AOP, degree, method="sp")$estimate,
+                  pval=stats::cor.test(AOP, degree, method="sp")$p.value
+                  ) %>%
+        ungroup() %>% group_by(corpus) %>%
+  summarise(mean_rho=mean(rho),
+            sd_rho=sd(rho)) %>%
+  filter(corpus == "English")
+
+stats.corr_Lyon <- globalthresholds_AOP %>%
+        group_by(Speaker, corpus) %>%
+        summarize(rho=stats::cor.test(AOP, degree, method="sp")$estimate,
+                  pval=stats::cor.test(AOP, degree, method="sp")$p.value
+                  ) %>%
+        ungroup() %>% group_by(corpus) %>%
+  summarise(mean_rho=mean(rho),
+            sd_rho=sd(rho)) %>%
+  filter(corpus == "French")
+
+```
+
+As a first step in the analysis, correlations were generated between connectivity and age of first production (hereafter AoP). According to both PAT- and PAQ-like network growth, we would expect  words acquired earlier in development to have higher connectivity, or higher degree, in the network. To test this, correlations were generated between the degree of each node in each child's global network, for both Actual and Target forms, and the AoP of that word in the data. Across all infants, there was a mean correlation of *r*=`r round(stats.corr.all$mean_rho,3)` (Spearman's, *SD*=`r printnum(stats.corr.all$sd_rho)`), with much stronger correlations observed in the English corpus (mean *r*=`r round(stats.corr_Providence$mean_rho,3)`, *SD* =`r printnum(stats.corr_Providence$sd_rho)`) than the French corpus (mean *r*=`r round(stats.corr_Lyon$mean_rho,3)`, *SD*=`r printnum(stats.corr_Lyon$sd_rho)`). Significant negative correlations were found in all children's data except Anais (French). See Table S1 and Figure S1.
+
+### Network growth models
+
+Next, network growth models were generated to test whether PAT and PAQ values predicted which words were produced in the following month. For both PAT and PAQ, higher values should predict earlier production, such that, in each month, the as-yet-unknown words with the highest PAT/PAQ values should be learned in the following month. If the models successfully predict which words were acquired, this would indicate that the infants' early phonological networks are developing according to PAT- and/or PAQ-like growth.
+
+All reported models were generated in R [@R-base]. P-values were established through nested model comparisons. Logistic mixed effects regression models included a binomial dependent variable (coded as 0 or 1) indexing whether, for each as-yet-unknown word at month *n*, it was acquired in month *n+1*. As well as PAT and PAQ growth values, each model included target word length in phonemes, the word's frequency in mothers' speech in the corpus, and age as fixed effects. Infant was specified as a random effect, with a by-subject random slope for the effect of age. All relevant variables were scaled and centred. 
+
+Following the approach taken by Siew and Vitevitch [-@siew_investigation_2020], the first step was to construct three models: a null model (model 0) with word length, frequency, and age included as predictors of word learning, and then two additional models with PAT (model 1) and PAQ (model 2) growth values included as predictors, respectively. In each case interactions were included between Word length x Age, Word frequency x Age and PAT/PAQ values x Age. Models 1 and 2 were then compared against model 0 to test for the effects of PAT and PAQ values individually. A third model (model 3) was then constructed that included both PAT and PAQ values as predictors. Data type (Actual and Target) and corpus (English and French) were modeled separately in each case.
+
+```{r regression model P_A, message=FALSE, warning=FALSE, include=FALSE}
+
+reg_dat_P <- regression_data_providence[which(complete.cases(regression_data_providence[,c('PAQ_scaled_target', 'PAT_scaled', 'length_scaled', 'freq_scaled', 'age_scaled')])),]
+
+model0_P_A <- glmer(learned_next ~
+                    length_scaled*age_scaled +
+                      freq_scaled*age_scaled +
+                      (1+age_scaled|Speaker),
+                    family=binomial("logit"),
+                    control=glmerControl(calc.derivs=FALSE,
+                                         optimizer="bobyqa",
+                                         optCtrl=list(maxfun=2e5)),  # specifiying optimizer to support convergence (does not                                                                             converge without this)
+                    data=subset(reg_dat_P, data_type == "actual" & !is.na(PAQ_scaled_target)))
+
+model1_P_A <- glmer(learned_next ~
+                    length_scaled*age_scaled +
+                      freq_scaled*age_scaled +
+                    PAT_scaled*age_scaled +
+                    (1+age_scaled|Speaker),
+                    family=binomial("logit"),
+                    control=glmerControl(calc.derivs=FALSE,
+                                         optimizer="bobyqa",
+                                         optCtrl=list(maxfun=2e5)),
+                    data=subset(reg_dat_P, data_type == "actual" & !is.na(PAQ_scaled_target)))
+
+model2_P_A <- glmer(learned_next ~
+                    length_scaled*age_scaled +
+                      freq_scaled*age_scaled +
+                    PAQ_scaled_target*age_scaled +
+                    (1+age_scaled|Speaker),
+                    family=binomial("logit"),
+                    control=glmerControl(calc.derivs=FALSE,
+                                         optimizer="bobyqa",
+                                         optCtrl=list(maxfun=2e5)),
+                    data=subset(reg_dat_P, data_type == "actual" & !is.na(PAQ_scaled_target)))
+
+models01_P_A <- anova(model0_P_A, model1_P_A)
+models02_P_A <- anova(model0_P_A, model2_P_A)
+
+model3_P_A <- glmer(learned_next ~
+                    length_scaled*age_scaled +
+                      freq_scaled*age_scaled +
+                    PAQ_scaled_target*age_scaled +
+                      PAT_scaled*age_scaled +
+                    (1+age_scaled|Speaker),
+                    family=binomial("logit"),
+                    control=glmerControl(calc.derivs=FALSE,
+                                         optimizer="bobyqa",
+                                         optCtrl=list(maxfun=2e5)),
+                    data=subset(reg_dat_P, data_type == "actual"& !is.na(PAQ_scaled_target)))
+
+models13_P_A <- anova(model1_P_A, model3_P_A)
+models23_P_A <- anova(model2_P_A, model3_P_A)
+
+#summary(model3_P_A)
+
+table.PA.model.output <- rbind(models01_P_A, models02_P_A, models13_P_A, models23_P_A) %>%
+  rownames_to_column(var="Model") %>%
+  filter(Chisq > 0) %>%
+  rename(#"PA Df"="Df",
+         #"PA Chisq"="Chisq",
+         "p"=`Pr(>Chisq)`) %>%
+  mutate(Model=fct_recode(Model,
+                           "null vs. PAT"="model1_P_A",
+                            "null vs. PAQ"="model2_P_A",
+                            "PAT vs. PAT+PAQ"="model3_P_A",
+                            "PAQ vs. PAT+PAQ"="model3_P_A1")) %>%
+  select(Model, `Df`, `Chisq`, `p`)
+
+model.summary.P_A <- summary(model3_P_A)
+
+model3_P_A_tab <- model.summary.P_A$coefficients %>%
+  as.data.frame %>%
+  rename(
+    "b"="Estimate"
+     , "SE"="Std. Error"
+     , "z"="z value"
+     , "p"="Pr(>|z|)") %>%
+  mutate(
+    Effect=papaja:::prettify_terms(rownames(.))
+  )
+
+table.model3_P_A <- model3_P_A_tab %>%
+  printnum(
+    digits=c(2, 2, 2, 3)
+    , gt1=c(TRUE, TRUE, TRUE, TRUE)
+    , zero=c(TRUE, TRUE, TRUE, TRUE)
+  ) %>%
+  select(Effect, `b`, `SE`, `z`, `p`) %>%
+  rename("beta"=`b`) %>%
+  mutate(beta=as.numeric(beta),
+        SE=as.numeric(SE),
+        `z`=as.numeric(`z`),
+        `p`=as.numeric(`p`),
+             p=scales::pvalue(p))
+
+```
+
+```{r regression model P_T, message=FALSE, warning=FALSE, include=FALSE}
+
+model0_P_T <- glmer(learned_next ~
+                    length_scaled*age_scaled +
+                      freq_scaled*age_scaled +
+                      (1+age_scaled|Speaker),
+                    family=binomial("logit"),
+                    control=glmerControl(calc.derivs=FALSE,
+                                         optimizer="bobyqa",
+                                         optCtrl=list(maxfun=2e5)),
+                    data=subset(reg_dat_P, data_type == "target" & !is.na(PAQ_scaled_target)))
+
+model1_P_T <- glmer(learned_next ~
+                    length_scaled*age_scaled +
+                      freq_scaled*age_scaled +
+                    PAT_scaled*age_scaled +
+                    (1+age_scaled|Speaker),
+                    family=binomial("logit"),
+                    control=glmerControl(calc.derivs=FALSE,
+                                         optimizer="bobyqa",
+                                         optCtrl=list(maxfun=2e5)),
+                    data=subset(reg_dat_P, data_type == "target" & !is.na(PAQ_scaled_target)))
+
+model2_P_T <- glmer(learned_next ~
+                    length_scaled*age_scaled +
+                      freq_scaled*age_scaled +
+                    PAQ_scaled_target*age_scaled +
+                    (1+age_scaled|Speaker),
+                    family=binomial("logit"),
+                    control=glmerControl(calc.derivs=FALSE,
+                                         optimizer="bobyqa",
+                                         optCtrl=list(maxfun=2e5)),
+                    data=subset(reg_dat_P, data_type == "target" & !is.na(PAQ_scaled_target)))
+
+models01_P_T <- anova(model0_P_T, model1_P_T)
+models02_P_T <- anova(model0_P_T, model2_P_T)
+
+model3_P_T <- glmer(learned_next ~
+                    length_scaled*age_scaled +
+                      freq_scaled*age_scaled +
+                    PAQ_scaled_target*age_scaled +
+                      PAT_scaled*age_scaled +
+                    (1+age_scaled|Speaker),
+                    family=binomial("logit"),
+                    control=glmerControl(calc.derivs=FALSE,
+                                         optimizer="bobyqa",
+                                         optCtrl=list(maxfun=2e5)),
+                    data=subset(reg_dat_P, data_type == "target" & !is.na(PAQ_scaled_target)))
+
+models13_P_T <- anova(model1_P_T, model3_P_T)
+models23_P_T <- anova(model2_P_T, model3_P_T)
+
+#summary(model3_P_T)
+
+table.PT.model.output <- rbind(models01_P_T, models02_P_T, models13_P_T, models23_P_T) %>%
+  rownames_to_column(var="Model") %>%
+  filter(Chisq > 0) %>%
+  rename(#"PT Df"="Df",
+         #"PT Chisq"="Chisq",
+         "p"=`Pr(>Chisq)`) %>%
+  mutate(Model=fct_recode(Model,
+                           "null vs. PAT"="model1_P_T",
+                            "null vs. PAQ"="model2_P_T",
+                            "PAT vs. PAT+PAQ"="model3_P_T",
+                            "PAQ vs. PAT+PAQ"="model3_P_T1")) %>%
+  select(Model, `Df`, `Chisq`, `p`)
+
+model.outputs.providence <- cbind(table.PA.model.output, table.PT.model.output)
+
+model.outputs.providence <- model.outputs.providence[,-5]
+
+
+model.summary.P_T <- summary(model3_P_T)
+
+model3_P_T_tab <- model.summary.P_T$coefficients %>%
+  as.data.frame %>%
+  rename(
+    "b"="Estimate"
+     , "SE"="Std. Error"
+     , "z"="z value"
+     , "p"="Pr(>|z|)") %>%
+  mutate(
+    Effect=papaja:::prettify_terms(rownames(.))
+  ) 
+
+table.model3_P_T <- model3_P_T_tab %>%
+  printnum(
+    digits=c(2, 2, 2, 3)
+    , gt1=c(TRUE, TRUE, TRUE, TRUE)
+    , zero=c(TRUE, TRUE, TRUE, TRUE)
+  ) %>%
+  select(Effect, `b`, `SE`, `z`, `p`) %>%
+  rename("beta"=`b`)  %>%
+  mutate(beta=as.numeric(beta),
+        SE=as.numeric(SE),
+        `z`=as.numeric(`z`),
+        `p`=as.numeric(`p`),
+             p=scales::pvalue(p))
+
+table.model3_P <- cbind(table.model3_P_A, table.model3_P_T)
+table.model3.P <- table.model3_P[,-6]
+
+table.model3.P <- table.model3.P %>% mutate(Effect=fct_recode(Effect,
+                                              Length="Length scaled",
+                                              Age="Age scaled",
+                                              `Word frequency`="Freq scaled",
+                                              `PAQ value`="PAQ scaled target",
+                                              `PAT value`="PAT scaled",
+                                              `Age x Length`="Length scaled $\\times$ Age scaled",
+                                              `Age x Frequency`="Age scaled $\\times$ Freq scaled",
+                                              `Age x PAQ`="Age scaled $\\times$ PAQ scaled target",
+                                              `Age x PAT`="Age scaled $\\times$ PAT scaled"))
+
+rownames(table.model3.P) <- NULL
+  
+
+actual_beta_PAT_P <- subset(model3_P_A_tab, Effect == "PAT scaled")$b
+actual_beta_PAQ_P <- subset(model3_P_A_tab, Effect == "PAQ scaled target")$b
+actual_p_PAT_P <- subset(model3_P_A_tab, Effect == "PAT scaled")$p
+actual_p_PAQ_P <- subset(model3_P_A_tab, Effect == "PAQ scaled target")$p
+
+target_beta_PAT_P <- subset(model3_P_T_tab, Effect == "PAT scaled")$b
+target_beta_PAQ_P <- subset(model3_P_T_tab, Effect == "PAQ scaled target")$b
+target_p_PAT_P <- subset(model3_P_T_tab, Effect == "PAT scaled")$p
+target_p_PAQ_P <- subset(model3_P_T_tab, Effect == "PAQ scaled target")$p
+
+```
+
+```{r model comparisons L_A, message=FALSE, warning=FALSE}
+
+reg_dat_L <- regression_data_lyon[which(complete.cases(regression_data_lyon[,c('PAQ_scaled_target', 'PAT_scaled', 'length_scaled', 'freq_scaled', 'age_scaled')])),]
+
+model0_L_A <- glmer(learned_next ~
+                    length_scaled*age_scaled +
+                      freq_scaled*age_scaled +
+                      (1+age_scaled|Speaker),
+                    family=binomial("logit"),
+                    control=glmerControl(calc.derivs=FALSE,
+                                         optimizer="bobyqa",
+                                         optCtrl=list(maxfun=2e5)),
+                    data=subset(reg_dat_L, data_type == "actual" & !is.na(PAQ_scaled_target)))
+
+model1_L_A <- glmer(learned_next ~
+                    length_scaled*age_scaled +
+                      freq_scaled*age_scaled +
+                    PAT_scaled*age_scaled +
+                    (1+age_scaled|Speaker),
+                    family=binomial("logit"),
+                    control=glmerControl(calc.derivs=FALSE,
+                                         optimizer="bobyqa",
+                                         optCtrl=list(maxfun=2e5)),
+                    data=subset(reg_dat_L, data_type == "actual"& !is.na(PAQ_scaled_target)))
+
+model2_L_A <- glmer(learned_next ~
+                    length_scaled*age_scaled +
+                      freq_scaled*age_scaled +
+                    PAQ_scaled_target*age_scaled +
+                    (1+age_scaled|Speaker),
+                    family=binomial("logit"),
+                    control=glmerControl(calc.derivs=FALSE,
+                                         optimizer="bobyqa",
+                                         optCtrl=list(maxfun=2e5)),
+                    data=subset(reg_dat_L, data_type == "actual"& !is.na(PAQ_scaled_target)))
+
+models01_L_A <- anova(model0_L_A, model1_L_A)
+models02_L_A <- anova(model0_L_A, model2_L_A)
+
+model3_L_A <- glmer(learned_next ~
+                    length_scaled*age_scaled +
+                      freq_scaled*age_scaled +
+                    PAQ_scaled_target*age_scaled +
+                      PAT_scaled*age_scaled +
+                    (1+age_scaled|Speaker),
+                    family=binomial("logit"),
+                    control=glmerControl(calc.derivs=FALSE,
+                                         optimizer="bobyqa",
+                                         optCtrl=list(maxfun=2e5)),
+                    data=subset(reg_dat_L, data_type == "actual" & !is.na(PAQ_scaled_target)))
+
+models13_L_A <- anova(model1_L_A, model3_L_A)
+models23_L_A <- anova(model2_L_A, model3_L_A)
+
+#summary(model3_L_A)
+
+table.LA.model.output <- rbind(models01_L_A, models02_L_A, models13_L_A, models23_L_A) %>%
+  rownames_to_column(var="Model") %>%
+  filter(Chisq > 0) %>%
+  rename(#"LA Df"="Df",
+         #"LA Chisq"="Chisq",
+         "p"=`Pr(>Chisq)`) %>%
+  mutate(Model=fct_recode(Model,
+                           "null vs. PAT"="model1_L_A",
+                            "null vs. PAQ"="model2_L_A",
+                            "PAT vs. PAT+PAQ"="model3_L_A",
+                            "PAQ vs. PAT+PAQ"="model3_L_A1"),
+             p=scales::pvalue(p)) %>%
+  select(Model, `Df`, `Chisq`, `p`)
+
+model.summary.L_A <- summary(model3_L_A)
+
+model3_L_A_tab <- model.summary.L_A$coefficients %>%
+  as.data.frame %>%
+  rename(
+    "b"="Estimate"
+     , "SE"="Std. Error"
+     , "z"="z value"
+     , "p"="Pr(>|z|)") %>%
+  mutate(
+    Effect=papaja:::prettify_terms(rownames(.))
+  )
+
+table.model3_L_A <- model3_L_A_tab %>%
+  printnum(
+    digits=c(2, 2, 2, 3)
+    , gt1=c(TRUE, TRUE, TRUE, TRUE)
+    , zero=c(TRUE, TRUE, TRUE, TRUE)
+  ) %>%
+  select(Effect, `b`, `SE`, `z`, `p`) %>%
+  rename("beta"=`b`) %>%
+  mutate(beta=as.numeric(beta),
+        SE=as.numeric(SE),
+        `z`=as.numeric(`z`),
+        `p`=as.numeric(`p`),
+             p=scales::pvalue(p))
+
+```
+
+```{r model comparisons L_T, message=FALSE, warning=FALSE}
+
+model0_L_T <- glmer(learned_next ~
+                    length_scaled*age_scaled +
+                      freq_scaled*age_scaled +
+                      (1+age_scaled|Speaker),
+                    family=binomial("logit"),
+                    control=glmerControl(calc.derivs=FALSE,
+                                         optimizer="bobyqa",
+                                         optCtrl=list(maxfun=2e5)),
+                    data=subset(reg_dat_L, data_type == "target" & !is.na(PAQ_scaled_target)))
+
+model1_L_T <- glmer(learned_next ~
+                    length_scaled*age_scaled +
+                      freq_scaled*age_scaled +
+                    PAT_scaled*age_scaled +
+                    (1+age_scaled|Speaker),
+                    family=binomial("logit"),
+                    control=glmerControl(calc.derivs=FALSE,
+                                         optimizer="bobyqa",
+                                         optCtrl=list(maxfun=2e5)),
+                    data=subset(reg_dat_L, data_type == "target" & !is.na(PAQ_scaled_target)))
+
+model2_L_T <- glmer(learned_next ~
+                    length_scaled*age_scaled +
+                      freq_scaled*age_scaled +
+                    PAQ_scaled_target*age_scaled +
+                    (1+age_scaled|Speaker),
+                    family=binomial("logit"),
+                    control=glmerControl(calc.derivs=FALSE,
+                                         optimizer="bobyqa",
+                                         optCtrl=list(maxfun=2e5)),
+                    data=subset(reg_dat_L, data_type == "target" & !is.na(PAQ_scaled_target)))
+
+models01_L_T <- anova(model0_L_T, model1_L_T)
+models02_L_T <- anova(model0_L_T, model2_L_T)
+
+model3_L_T <- glmer(learned_next ~
+                    length_scaled*age_scaled +
+                      freq_scaled*age_scaled +
+                    PAQ_scaled_target*age_scaled +
+                      PAT_scaled*age_scaled +
+                    (1+age_scaled|Speaker),
+                    family=binomial("logit"),
+                    control=glmerControl(calc.derivs=FALSE,
+                                         optimizer="bobyqa",
+                                         optCtrl=list(maxfun=2e5)),
+                    data=subset(reg_dat_L, data_type == "target" & !is.na(PAQ_scaled_target)))
+
+models13_L_T <- anova(model1_L_T, model3_L_T)
+models23_L_T <- anova(model2_L_T, model3_L_T)
+
+#summary(model3_L_T)
+
+table.LT.model.output <- rbind(models01_L_T, models02_L_T, models13_L_T, models23_L_T) %>%
+  rownames_to_column(var="Model") %>%
+  filter(Chisq > 0) %>%
+  rename(#"LT Df"="Df",
+         #"LT Chisq"="Chisq",
+         "p"=`Pr(>Chisq)`) %>%
+  mutate(Model=fct_recode(Model,
+                           "null vs. PAT"="model1_L_T",
+                            "null vs. PAQ"="model2_L_T",
+                            "PAT vs. PAT+PAQ"="model3_L_T",
+                            "PAQ vs. PAT+PAQ"="model3_L_T1"),
+             p=scales::pvalue(p)) %>%
+  select(Model, `Df`, `Chisq`, `p`)
+
+model.summary.L_T <- summary(model3_L_T)
+
+model.outputs.lyon <- cbind(table.LA.model.output, table.LT.model.output)
+
+model.outputs.lyon <- model.outputs.lyon[,-5]
+
+model3_L_T_tab <- model.summary.L_T$coefficients %>%
+  as.data.frame %>%
+  rename(
+    "b"="Estimate"
+     , "SE"="Std. Error"
+     , "z"="z value"
+     , "p"="Pr(>|z|)") %>%
+  mutate(
+    Effect=papaja:::prettify_terms(rownames(.))
+  ) 
+
+table.model3_L_T <- model3_L_T_tab %>%
+  printnum(
+    digits=c(2, 2, 2, 3)
+    , gt1=c(TRUE, TRUE, TRUE, TRUE)
+    , zero=c(TRUE, TRUE, TRUE, TRUE)
+  ) %>%
+  select(Effect, `b`, `SE`, `z`, `p`) %>%
+  rename("beta"=`b`) %>%
+  mutate(beta=as.numeric(beta),
+        SE=as.numeric(SE),
+        `z`=as.numeric(`z`),
+        `p`=as.numeric(`p`),
+             p=scales::pvalue(p))
+
+table.model3_L <- cbind(table.model3_L_A, table.model3_L_T)
+table.model3.L <- table.model3_L[,-6]
+
+table.model3.L <- table.model3.L %>% mutate(Effect=fct_recode(Effect,
+                                              Length="Length scaled",
+                                              Age="Age scaled",
+                                              `Word frequency`="Freq scaled",
+                                              `PAQ value`="PAQ scaled target",
+                                              `PAT value`="PAT scaled",
+                                              `Age x Length`="Length scaled $\\times$ Age scaled",
+                                              `Age x Frequency`="Age scaled $\\times$ Freq scaled",
+                                              `Age x PAQ`="Age scaled $\\times$ PAQ scaled target",
+                                              `Age x PAT`="Age scaled $\\times$ PAT scaled"))
+
+rownames(table.model3.L) <- NULL
+
+actual_beta_PAT_L <- subset(model3_L_A_tab, Effect == "PAT scaled")$b
+actual_beta_PAQ_L <- subset(model3_L_A_tab, Effect == "PAQ scaled target")$b
+actual_p_PAT_L <- subset(model3_L_A_tab, Effect == "PAT scaled")$p
+actual_p_PAQ_L <- subset(model3_L_A_tab, Effect == "PAQ scaled target")$p
+
+target_beta_PAT_L <- subset(model3_L_T_tab, Effect == "PAT scaled")$b
+target_beta_PAQ_L <- subset(model3_L_T_tab, Effect == "PAQ scaled target")$b
+target_p_PAT_L <- subset(model3_L_T_tab, Effect == "PAT scaled")$p
+target_p_PAQ_L <- subset(model3_L_T_tab, Effect == "PAQ scaled target")$p
+
+```
+
+```{r table-model-summary-providence, eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+cap="Outputs from likelihood ratio tests comparing logistic regression models (Actual and Target PAT growth values) predicting acquisition of words in each month in the English data."
+kable(model.outputs.providence, "latex", booktabs=T, longtable=T, caption=cap, digits=2, align="c",
+      col.names=c("Model", "Df", "Chi Sq", "p", "Df", "Chi Sq", "p")) %>%
+  add_header_above(c(" "=1, "Actual"=3, "Target"=3))
+```
+
+```{r table-model-summary-lyon, eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+cap="Outputs from likelihood ratio tests comparing logistic regression models predicting acquisition of words in each month in the French data."
+kable(model.outputs.lyon, "latex", booktabs=T, longtable=T, caption=cap, digits=2, align="c",
+      col.names=c("Model", "Df", "Chi Sq", "p", "Df", "Chi Sq", "p")) %>%
+  add_header_above(c(" "=1, "Actual"=3, "Target"=3))
+```
+
+```{r table-data-summary-providence, echo=F, message=FALSE, warning=FALSE, comment=F}
+cap="Results from maximal logistic regression models with network growth values, word frequency and word length to predict word acquisition in the English data. All variables were scaled and centred."
+knitr::kable(table.model3.P, "latex", booktabs=T, longtable=T, caption=cap, digits=2, align="c",
+          col.names=gsub("[.1]", "", names(table.model3.P))) %>%
+  add_header_above(c(" "=1, "Actual"=4, "Target"=4))
+```
+
+```{r table-data-summary-lyon, echo=FALSE, message=FALSE, warning=FALSE, comment=F}
+cap="Results from maximal logistic regression models with network growth values, word frequency and word length to predict word acquisition in the French data."
+kable(table.model3.L, "latex", booktabs=T, longtable=T, caption=cap, digits=2, align="c",
+          col.names=c("Effect", "beta", "SE", "z", "p", "beta", "SE", "z", "p"))  %>%
+  add_header_above(c(" "=1, "Actual"=4, "Target"=4))
+```
+
+As shown in Table \@ref(tab:table-model-summary-providence), PAT, but not PAQ, values improved model fit over and above the effects of word frequency, word length and age for both Actual and Target forms in the English data. A model with both PAT and PAQ values included did not significantly improve model fit over and above a model that only included PAT values. In the French data, both PAT and PAQ values improved model fit for both Actual and Target forms, such that the model with both PAT and PAQ values included proved to be the best fit to the data. See Table \@ref(tab:table-model-summary-lyon). This lends tentative support for H1, in that PAT values predicted acquisition in both datasets. Results suggest that PAQ also plays a role in phonological development.
+
+Model outputs are shown in Tables \@ref(tab:table-data-summary-providence) and \@ref(tab:table-data-summary-lyon). Word length, word frequency and age had a significant effect on acquisition across all the data. As we would expect, longer words were acquired later, and more frequent words earlier. Age was a significant predictor of acquisition, likely because over time, as-yet-unknown words are increasingly likely to be learned in the following month. Looking now at the growth values, words with higher PAT values were more likely to be acquired in the English data, and this effect was slightly stronger for Actual (*b*=`r printnum(actual_beta_PAT_P)`, *p* `r printp(actual_p_PAT_P)`) over Target forms (*b*=`r printnum(target_beta_PAT_P)`, *p* `r printp(target_p_PAT_P)`), again supporting H1, with initial support for H3. In the French corpus, results were less clear in relation to H1: *lower* PAQ values predicted acquisition in the Actual data (*b*=`r printnum(actual_beta_PAQ_L)`, *p*=`r printp(actual_p_PAQ_L)`), as well as in the Target data, though here the individual contribution of PAQ was only marginally significant (*b*=`r printnum(target_beta_PAQ_L)`, *p*=`r printp(target_p_PAQ_L)`). PAT values were only significant in the Target data, and again *lower* values predicted acquisition (*b*=`r printnum(target_beta_PAT_L)`, *p* `r printp(target_p_PAT_L)`).
+
+A number of these main effects were qualified by a significant interaction with Age. In the English corpus, word length and  frequency interacted significantly with Age in the Actual data, and word frequency also in the Target data. See Table \@ref(tab:table-data-summary-providence). In the French corpus, word length and both PAT and PAQ values interacted with Age in both Actual and Target data. See Table \@ref(tab:table-data-summary-lyon). These interactions will be explored in more detail below.
+
+### Interactions
+
+```{r interactions P_A, message=FALSE, warning=FALSE}
+
+# age * word frequency
+
+age_freq_slope_P_A <- sim_slopes(model3_P_A,
+                                   pred=freq_scaled,
+                                   modx=age_scaled,
+                                   johnson_neyman=FALSE)
+
+age_freq_P_A <- age_freq_slope_P_A$slopes %>%
+  as.data.frame %>%
+  mutate(
+    Effect=papaja:::prettify_terms(rownames(.))
+  ) %>%
+  printnum(
+    digits=c(2, 2, 2, 3)
+    , gt1=c(TRUE, TRUE, TRUE, TRUE)
+    , zero=c(TRUE, TRUE, TRUE, TRUE)
+  ) %>%
+  rename(
+    "age_scaled"=`Value of age_scaled`,
+    "Est"=`Est.`,
+    "Scaled age" = `Effect`,
+    "z" = `z val.`
+  ) %>%
+  mutate(
+    Est=as.numeric(Est),
+    p=as.numeric(p),
+    p=scales::pvalue(p),
+    Interaction = ifelse(`Scaled age` == 1, "Age x Frequency", ""),
+    Corpus = ifelse(`Scaled age` ==1, "English", ""),
+    `Data type` = ifelse(`Scaled age`==1, "Actual", ""), 
+    `Scaled age` = fct_recode(`Scaled age`,
+                              `-1SD` = "1",
+                              Mean = "2",
+                              `+1SD` = "3")) %>%
+  dplyr::select(Interaction, Corpus, `Data type`, `Scaled age`, Est, z, p)
+
+# age_freq_P_A_est_1sd <- subset(age_freq_P_A, Effect == "1")$Est
+# age_freq_P_A_p_1sd <- subset(age_freq_P_A, Effect == "1")$p
+# age_freq_P_A_est_mean <- subset(age_freq_P_A, Effect == "2")$Est
+# age_freq_P_A_p_mean <- subset(age_freq_P_A, Effect == "2")$p
+# age_freq_P_A_est_2sd <- subset(age_freq_P_A, Effect == "3")$Est
+# age_freq_P_A_p_2sd <- subset(age_freq_P_A, Effect == "3")$p
+
+```
+
+```{r interaction plots p_A, message=FALSE, warning=FALSE}
+
+age.freq_P_A <- effect('age_scaled*freq_scaled', model3_P_A,
+                       xlevels=list(age_scaled=c(-1, 0, 1),
+                                    se=TRUE, confidence.level=.95, typical=mean))
+
+age.freq_P_A <- as.data.frame(age.freq_P_A)
+
+age.freq_P_A$age_scaled <- factor(age.freq_P_A$age_scaled,
+                                  levels=c(-1, 0, 1),
+                                  labels=c("-1SD", "Mean", "+1SD"))
+
+age.freq_P_A$freq_scaled <- factor(age.freq_P_A$freq_scaled)
+
+age.freq_P_A <- age.freq_P_A %>%
+  rename("factor"="freq_scaled") %>%
+  mutate(Interaction="Word frequency",
+         data_type="Actual",
+         Corpus="English")
+
+extrafont::loadfonts()
+
+#P_A_slopes <- rbind(age.length_P_A, age.freq_P_A, age.PAQ_P_A)
+P_A_slopes <- age.freq_P_A
+
+```
+
+```{r interactions P_T, message=FALSE, warning=FALSE}
+
+# age * word length
+
+age_length_slope_P_T <- sim_slopes(model3_P_T,
+                                   pred=length_scaled,
+                                   modx=age_scaled,
+                                   johnson_neyman=FALSE)
+
+age_length_P_T <- age_length_slope_P_T$slopes %>%
+  as.data.frame %>%
+  mutate(
+    Effect=papaja:::prettify_terms(rownames(.))
+  ) %>%
+  printnum(
+    digits=c(2, 2, 2, 3)
+    , gt1=c(TRUE, TRUE, TRUE, TRUE)
+    , zero=c(TRUE, TRUE, TRUE, TRUE)
+  ) %>%
+  rename(
+    "age_scaled"=`Value of age_scaled`,
+    "Est"=`Est.`,
+    "Scaled age" = `Effect`,
+    "z" = `z val.`
+  ) %>%
+  mutate(
+    Est=as.numeric(Est),
+    p=as.numeric(p),
+    p=scales::pvalue(p),
+    Interaction = ifelse(`Scaled age` == 1, "Age x Word length", ""),
+    Corpus = ifelse(`Scaled age` ==1, "English", ""),
+    `Data type` = ifelse(`Scaled age`==1, "Target", ""), 
+    `Scaled age` = fct_recode(`Scaled age`,
+                              `-1SD` = "1",
+                              Mean = "2",
+                              `+1SD` = "3")) %>%
+  dplyr::select(Interaction, Corpus, `Data type`, `Scaled age`, Est, z, p)
+
+# age * word frequency
+
+age_freq_slope_P_T <- sim_slopes(model3_P_T,
+                                   pred=freq_scaled,
+                                   modx=age_scaled,
+                                   johnson_neyman=FALSE)
+
+age_freq_P_T <- age_freq_slope_P_T$slopes %>%
+  as.data.frame %>%
+  mutate(
+    Effect=papaja:::prettify_terms(rownames(.))
+  ) %>%
+  printnum(
+    digits=c(2, 2, 2, 3)
+    , gt1=c(TRUE, TRUE, TRUE, TRUE)
+    , zero=c(TRUE, TRUE, TRUE, TRUE)
+  ) %>%
+  rename(
+    "age_scaled"=`Value of age_scaled`,
+    "Est"=`Est.`,
+    "Scaled age" = `Effect`,
+    "z" = `z val.`
+  ) %>%
+  mutate(
+    Est=as.numeric(Est),
+    p=as.numeric(p),
+    p=scales::pvalue(p),
+    Interaction = ifelse(`Scaled age` == 1, "Age x Frequency", ""),
+    Corpus = ifelse(`Scaled age` ==1, "English", ""),
+    `Data type` = ifelse(`Scaled age`==1, "Target", ""), 
+    `Scaled age` = fct_recode(`Scaled age`,
+                              `-1SD` = "1",
+                              Mean = "2",
+                              `+1SD` = "3")) %>%
+  dplyr::select(Interaction, Corpus, `Data type`, `Scaled age`, Est, z, p)
+
+# age_length_P_T_est_1sd <- subset(age_length_P_T, Effect == "1")$Est
+# age_length_P_T_p_1sd <- subset(age_length_P_T, Effect == "1")$p
+# age_length_P_T_est_mean <- subset(age_length_P_T, Effect == "2")$Est
+# age_length_P_T_p_mean <- subset(age_length_P_T, Effect == "2")$p
+# age_length_P_T_est_2sd <- subset(age_length_P_T, Effect == "3")$Est
+# age_length_P_T_p_2sd <- subset(age_length_P_T, Effect == "3")$p
+# 
+# age_freq_P_T_est_1sd <- subset(age_freq_P_T, Effect == "1")$Est
+# age_freq_P_T_p_1sd <- subset(age_freq_P_T, Effect == "1")$p
+# age_freq_P_T_est_mean <- subset(age_freq_P_T, Effect == "2")$Est
+# age_freq_P_T_p_mean <- subset(age_freq_P_T, Effect == "2")$p
+# age_freq_P_T_est_2sd <- subset(age_freq_P_T, Effect == "3")$Est
+# age_freq_P_T_p_2sd <- subset(age_freq_P_T, Effect == "3")$p
+
+```
+
+```{r interaction plots p_T, message=FALSE, warning=FALSE, include=FALSE}
+
+age.length_P_T <- effect('length_scaled*age_scaled', model3_P_T,
+                         xlevels=list(age_scaled=c(-1, 0, 1),
+                                      #  Work.Ethic.C=c(-1.1, 0, 1.1)),
+                                      se=TRUE, confidence.level=.95, typical=mean))
+
+age.length_P_T <- as.data.frame(age.length_P_T)
+
+age.length_P_T$age_scaled <- factor(age.length_P_T$age_scaled,
+                                    levels=c(-1, 0, 1),
+                                    labels=c("-1 SD", "Mean", "+1 SD"))
+
+age.length_P_T$length_scaled <- factor(age.length_P_T$length_scaled)
+
+age.length_P_T <- age.length_P_T %>%
+  rename("factor"="length_scaled") %>%
+  mutate(Interaction="Word length",
+         data_type="Target",
+         Corpus="English")
+
+age.freq_P_T <- effect('age_scaled*freq_scaled', model3_P_T,
+                       xlevels=list(age_scaled=c(-1, 0, 1),
+                                    se=TRUE, confidence.level=.95, typical=mean))
+
+age.freq_P_T <- as.data.frame(age.freq_P_T)
+
+age.freq_P_T$age_scaled <- factor(age.freq_P_T$age_scaled,
+                                  levels=c(-1, 0, 1),
+                                  labels=c("-1 SD", "Mean", "+1 SD"))
+
+age.freq_P_T$freq_scaled <- factor(age.freq_P_T$freq_scaled)
+
+age.freq_P_T <- age.freq_P_T %>%
+  rename("factor"="freq_scaled") %>%
+  mutate(Interaction="Word frequency",
+         data_type="Target",
+         Corpus="English")
+
+P_slopes <- rbind(P_A_slopes, age.freq_P_T, age.length_P_T)
+
+```
+
+```{r interactions L_A, message=FALSE, warning=FALSE}
+
+# age * word length
+
+age_length_slope_L_A <- sim_slopes(model3_L_A,
+                                   pred=length_scaled,
+                                   modx=age_scaled,
+                                   johnson_neyman=FALSE)
+
+age_length_L_A <- age_length_slope_L_A$slopes %>%
+  as.data.frame %>%
+  mutate(
+    Effect=papaja:::prettify_terms(rownames(.))
+  ) %>%
+  printnum(
+    digits=c(2, 2, 2, 3)
+    , gt1=c(TRUE, TRUE, TRUE, TRUE)
+    , zero=c(TRUE, TRUE, TRUE, TRUE)
+  ) %>%
+  rename(
+    "age_scaled"=`Value of age_scaled`,
+    "Est"=`Est.`,
+    "Scaled age" = `Effect`,
+    "z" = `z val.`
+  ) %>%
+  mutate(
+    Est=as.numeric(Est),
+    p=as.numeric(p),
+    p=scales::pvalue(p),
+    Interaction = ifelse(`Scaled age` == 1, "Age x Word length", ""),
+    Corpus = ifelse(`Scaled age` ==1, "French", ""),
+    `Data type` = ifelse(`Scaled age`==1, "Actual", ""), 
+    `Scaled age` = fct_recode(`Scaled age`,
+                              `-1SD` = "1",
+                              Mean = "2",
+                              `+1SD` = "3")) %>%
+  dplyr::select(Interaction, Corpus, `Data type`, `Scaled age`, Est, z, p)
+
+# age * PAT
+
+age_PAT_slope_L_A <- sim_slopes(model3_L_A,
+                                   pred=PAT_scaled,
+                                   modx=age_scaled,
+                                   johnson_neyman=FALSE)
+
+age_PAT_L_A <- age_PAT_slope_L_A$slopes %>%
+  as.data.frame %>%
+  mutate(
+    Effect=papaja:::prettify_terms(rownames(.))
+  ) %>%
+  printnum(
+    digits=c(2, 2, 2, 3)
+    , gt1=c(TRUE, TRUE, TRUE, TRUE)
+    , zero=c(TRUE, TRUE, TRUE, TRUE)
+  ) %>%
+  rename(
+    "age_scaled"=`Value of age_scaled`,
+    "Est"=`Est.`,
+    "Scaled age" = `Effect`,
+    "z" = `z val.`
+  ) %>%
+  mutate(
+    Est=as.numeric(Est),
+    p=as.numeric(p),
+    p=scales::pvalue(p),
+    Interaction = ifelse(`Scaled age` == 1, "Age x PAT", ""),
+    Corpus = ifelse(`Scaled age` ==1, "French", ""),
+    `Data type` = ifelse(`Scaled age`==1, "Actual", ""), 
+    `Scaled age` = fct_recode(`Scaled age`,
+                              `-1SD` = "1",
+                              Mean = "2",
+                              `+1SD` = "3")) %>%
+  dplyr::select(Interaction, Corpus, `Data type`, `Scaled age`, Est, z, p)
+
+
+# age * PAQ
+
+age_PAQ_slope_L_A <- sim_slopes(model3_L_A,
+                                   pred=PAQ_scaled_target,
+                                   modx=age_scaled,
+                                   johnson_neyman=FALSE)
+
+age_PAQ_L_A <- age_PAQ_slope_L_A$slopes %>%
+  as.data.frame %>%
+  mutate(
+    Effect=papaja:::prettify_terms(rownames(.))
+  ) %>%
+  printnum(
+    digits=c(2, 2, 2, 3)
+    , gt1=c(TRUE, TRUE, TRUE, TRUE)
+    , zero=c(TRUE, TRUE, TRUE, TRUE)
+  ) %>%
+  rename(
+    "age_scaled"=`Value of age_scaled`,
+    "Est"=`Est.`,
+    "Scaled age" = `Effect`,
+    "z" = `z val.`
+  ) %>%
+  mutate(
+    Est=as.numeric(Est),
+    p=as.numeric(p),
+    p=scales::pvalue(p),
+    Interaction = ifelse(`Scaled age` == 1, "Age x PAQ", ""),
+    Corpus = ifelse(`Scaled age` ==1, "French", ""),
+    `Data type` = ifelse(`Scaled age`==1, "Actual", ""), 
+    `Scaled age` = fct_recode(`Scaled age`,
+                              `-1SD` = "1",
+                              Mean = "2",
+                              `+1SD` = "3")) %>%
+  dplyr::select(Interaction, Corpus, `Data type`, `Scaled age`, Est, z, p)
+
+# age_length_L_A_est_1sd <- subset(age_length_L_A, Effect == "1")$Est
+# age_length_L_A_p_1sd <- subset(age_length_L_A, Effect == "1")$p
+# age_length_L_A_est_mean <- subset(age_length_L_A, Effect == "2")$Est
+# age_length_L_A_p_mean <- subset(age_length_L_A, Effect == "2")$p
+# age_length_L_A_est_2sd <- subset(age_length_L_A, Effect == "3")$Est
+# age_length_L_A_p_2sd <- subset(age_length_L_A, Effect == "3")$p
+# 
+# age_PAT_L_A_est_1sd <- subset(age_PAT_L_A, Effect == "1")$Est
+# age_PAT_L_A_p_1sd <- subset(age_PAT_L_A, Effect == "1")$p
+# age_PAT_L_A_est_mean <- subset(age_PAT_L_A, Effect == "2")$Est
+# age_PAT_L_A_p_mean <- subset(age_PAT_L_A, Effect == "2")$p
+# age_PAT_L_A_est_2sd <- subset(age_PAT_L_A, Effect == "3")$Est
+# age_PAT_L_A_p_2sd <- subset(age_PAT_L_A, Effect == "3")$p
+# 
+# age_PAQ_L_A_est_1sd <- subset(age_PAQ_L_A, Effect == "1")$Est
+# age_PAQ_L_A_p_1sd <- subset(age_PAQ_L_A, Effect == "1")$p
+# age_PAQ_L_A_est_mean <- subset(age_PAQ_L_A, Effect == "2")$Est
+# age_PAQ_L_A_p_mean <- subset(age_PAQ_L_A, Effect == "2")$p
+# age_PAQ_L_A_est_2sd <- subset(age_PAQ_L_A, Effect == "3")$Est
+# age_PAQ_L_A_p_2sd <- subset(age_PAQ_L_A, Effect == "3")$p
+
+```
+
+```{r interaction plots L_A, message=FALSE, warning=FALSE}
+
+age.length_L_A <- effect('length_scaled*age_scaled', model3_L_A,
+                         xlevels=list(age_scaled=c(-1, 0, 1),
+                                      se=TRUE, confidence.level=.95, typical=mean))
+
+age.length_L_A <- as.data.frame(age.length_L_A)
+
+age.length_L_A$age_scaled <- factor(age.length_L_A$age_scaled,
+                                    levels=c(-1, 0, 1),
+                                    labels=c("-1 SD", "Mean", "+1 SD"))
+
+age.length_L_A$length_scaled <- factor(age.length_L_A$length_scaled)
+
+age.length_L_A <- age.length_L_A %>%
+  rename("factor"="length_scaled") %>%
+  mutate(Interaction="Word length",
+         data_type="Actual",
+         Corpus="French")
+
+age.PAT_L_A <- effect('age_scaled*PAT_scaled', model3_L_A,
+                      xlevels=list(age_scaled=c(-1, 0, 1),
+                                   se=TRUE, confidence.level=.95, typical=mean))
+
+age.PAT_L_A <- as.data.frame(age.PAT_L_A)
+
+age.PAT_L_A$age_scaled <- factor(age.PAT_L_A$age_scaled,
+                                 levels=c(-1, 0, 1),
+                                 labels=c("-1SD", "Mean", "+1SD"))
+
+age.PAT_L_A$PAT_scaled <- factor(age.PAT_L_A$PAT_scaled)
+
+age.PAT_L_A <- age.PAT_L_A %>%
+  rename("factor"="PAT_scaled") %>%
+  mutate(Interaction="PAT values",
+         data_type="Actual",
+         Corpus="French")
+
+age.PAQ_L_A <- effect('age_scaled*PAQ_scaled_target', model3_L_A,
+                      xlevels=list(age_scaled=c(-1, 0, 1),
+                                   se=TRUE, confidence.level=.95, typical=mean))
+
+age.PAQ_L_A <- as.data.frame(age.PAQ_L_A)
+
+age.PAQ_L_A$age_scaled <- factor(age.PAQ_L_A$age_scaled,
+                                 levels=c(-1, 0, 1),
+                                 labels=c("-1SD", "Mean", "+1SD"))
+
+age.PAQ_L_A$PAQ_scaled_target <- factor(age.PAQ_L_A$PAQ_scaled_target)
+
+age.PAQ_L_A <- age.PAQ_L_A %>%
+  rename("factor"="PAQ_scaled_target") %>%
+  mutate(Interaction="PAQ values",
+         data_type="Actual",
+         Corpus="French")
+```
+
+```{r interactions L_T, message=FALSE, warning=FALSE}
+
+# age * word length
+
+age_length_slope_L_T <- sim_slopes(model3_L_T,
+                                   pred=length_scaled,
+                                   modx=age_scaled,
+                                   johnson_neyman=FALSE)
+
+age_length_L_T <- age_length_slope_L_T$slopes %>%
+  as.data.frame %>%
+  mutate(
+    Effect=papaja:::prettify_terms(rownames(.))
+  ) %>%
+  printnum(
+    digits=c(2, 2, 2, 3)
+    , gt1=c(TRUE, TRUE, TRUE, TRUE)
+    , zero=c(TRUE, TRUE, TRUE, TRUE)
+  ) %>%
+  rename(
+    "age_scaled"=`Value of age_scaled`,
+    "Est"=`Est.`,
+    "Scaled age" = `Effect`,
+    "z" = `z val.`
+  ) %>%
+  mutate(
+    Est=as.numeric(Est),
+    p=as.numeric(p),
+    p=scales::pvalue(p),
+    Interaction = ifelse(`Scaled age` == 1, "Age x Word length", ""),
+    Corpus = ifelse(`Scaled age` ==1, "French", ""),
+    `Data type` = ifelse(`Scaled age`==1, "Target", ""), 
+    `Scaled age` = fct_recode(`Scaled age`,
+                              `-1SD` = "1",
+                              Mean = "2",
+                              `+1SD` = "3")) %>%
+  dplyr::select(Interaction, Corpus, `Data type`, `Scaled age`, Est, z, p)
+
+# age * PAT
+
+age_PAT_slope_L_T <- sim_slopes(model3_L_T,
+                                   pred=PAT_scaled,
+                                   modx=age_scaled,
+                                   johnson_neyman=FALSE)
+
+age_PAT_L_T <- age_PAT_slope_L_T$slopes %>%
+  as.data.frame %>%
+  mutate(
+    Effect=papaja:::prettify_terms(rownames(.))
+  ) %>%
+  printnum(
+    digits=c(2, 2, 2, 3)
+    , gt1=c(TRUE, TRUE, TRUE, TRUE)
+    , zero=c(TRUE, TRUE, TRUE, TRUE)
+  ) %>%
+  rename(
+    "age_scaled"=`Value of age_scaled`,
+    "Est"=`Est.`,
+    "Scaled age" = `Effect`,
+    "z" = `z val.`
+  ) %>%
+  mutate(
+    Est=as.numeric(Est),
+    p=as.numeric(p),
+    p=scales::pvalue(p),
+    Interaction = ifelse(`Scaled age` == 1, "Age x PAT", ""),
+    Corpus = ifelse(`Scaled age` ==1, "French", ""),
+    `Data type` = ifelse(`Scaled age`==1, "Target", ""), 
+    `Scaled age` = fct_recode(`Scaled age`,
+                              `-1SD` = "1",
+                              Mean = "2",
+                              `+1SD` = "3")) %>%
+  dplyr::select(Interaction, Corpus, `Data type`, `Scaled age`, Est, z, p)
+
+# age * PAQ
+
+age_PAQ_slope_L_T <- sim_slopes(model3_L_T,
+                                   pred=PAQ_scaled_target,
+                                   modx=age_scaled,
+                                   johnson_neyman=FALSE)
+
+age_PAQ_L_T <- age_PAQ_slope_L_T$slopes %>%
+  as.data.frame %>%
+  mutate(
+    Effect=papaja:::prettify_terms(rownames(.))
+  ) %>%
+  printnum(
+    digits=c(2, 2, 2, 3)
+    , gt1=c(TRUE, TRUE, TRUE, TRUE)
+    , zero=c(TRUE, TRUE, TRUE, TRUE)
+  ) %>%
+  rename(
+    "age_scaled"=`Value of age_scaled`,
+    "Est"=`Est.`,
+    "Scaled age" = `Effect`,
+    "z" = `z val.`
+  ) %>%
+  mutate(
+    Est=as.numeric(Est),
+    p=as.numeric(p),
+    p=scales::pvalue(p),
+    Interaction = ifelse(`Scaled age` == 1, "Age x PAQ", ""),
+    Corpus = ifelse(`Scaled age` ==1, "French", ""),
+    `Data type` = ifelse(`Scaled age`==1, "Target", ""), 
+    `Scaled age` = fct_recode(`Scaled age`,
+                              `-1SD` = "1",
+                              Mean = "2",
+                              `+1SD` = "3")) %>%
+  dplyr::select(Interaction, Corpus, `Data type`, `Scaled age`, Est, z, p)
+
+# 
+# age_length_L_T_est_1sd <- subset(age_length_L_T, Effect == "1")$Est
+# age_length_L_T_p_1sd <- subset(age_length_L_T, Effect == "1")$p
+# age_length_L_T_est_mean <- subset(age_length_L_T, Effect == "2")$Est
+# age_length_L_T_p_mean <- subset(age_length_L_T, Effect == "2")$p
+# age_length_L_T_est_2sd <- subset(age_length_L_T, Effect == "3")$Est
+# age_length_L_T_p_2sd <- subset(age_length_L_T, Effect == "3")$p
+# 
+# age_PAT_L_T_est_1sd <- subset(age_PAT_L_T, Effect == "1")$Est
+# age_PAT_L_T_p_1sd <- subset(age_PAT_L_T, Effect == "1")$p
+# age_PAT_L_T_est_mean <- subset(age_PAT_L_T, Effect == "2")$Est
+# age_PAT_L_T_p_mean <- subset(age_PAT_L_T, Effect == "2")$p
+# age_PAT_L_T_est_2sd <- subset(age_PAT_L_T, Effect == "3")$Est
+# age_PAT_L_T_p_2sd <- subset(age_PAT_L_T, Effect == "3")$p
+# 
+# age_PAQ_L_T_est_1sd <- subset(age_PAQ_L_T, Effect == "1")$Est
+# age_PAQ_L_T_p_1sd <- subset(age_PAQ_L_T, Effect == "1")$p
+# age_PAQ_L_T_est_mean <- subset(age_PAQ_L_T, Effect == "2")$Est
+# age_PAQ_L_T_p_mean <- subset(age_PAQ_L_T, Effect == "2")$p
+# age_PAQ_L_T_est_2sd <- subset(age_PAQ_L_T, Effect == "3")$Est
+# age_PAQ_L_T_p_2sd <- subset(age_PAQ_L_T, Effect == "3")$p
+
+```
+
+```{r interaction plots L_T, message=FALSE, warning=FALSE}
+
+age.length_L_T <- effect('length_scaled*age_scaled', model3_L_T,
+                         xlevels=list(age_scaled=c(-1, 0, 1),
+                                      #  Work.Ethic.C=c(-1.1, 0, 1.1)),
+                                      se=TRUE, confidence.level=.95, typical=mean))
+
+age.length_L_T <- as.data.frame(age.length_L_T)
+
+age.length_L_T$age_scaled <- factor(age.length_L_T$age_scaled,
+                                    levels=c(-1, 0, 1),
+                                    labels=c("-1 SD", "Mean", "+1 SD"))
+
+age.length_L_T$length_scaled <- factor(age.length_L_T$length_scaled)#,
+#levels=c(-1.1, 0, 1.1),
+#labels=c("Poor Worker", "Average Worker", "Hard Worker"))
+
+age.length_L_T <- age.length_L_T %>%
+  rename("factor"="length_scaled") %>%
+  mutate(Interaction="Word length",
+         data_type="Target",
+         Corpus="French")
+
+age.PAT_L_T <- effect('age_scaled*PAT_scaled', model3_L_T,
+                      xlevels=list(age_scaled=c(-1, 0, 1),
+                                   se=TRUE, confidence.level=.95, typical=mean))
+
+age.PAT_L_T <- as.data.frame(age.PAT_L_T)
+
+age.PAT_L_T$age_scaled <- factor(age.PAT_L_T$age_scaled,
+                                 levels=c(-1, 0, 1),
+                                 labels=c("-1SD", "Mean", "+1SD"))
+
+age.PAT_L_T$PAT_scaled <- factor(age.PAT_L_T$PAT_scaled)
+
+age.PAT_L_T <- age.PAT_L_T %>%
+  rename("factor"="PAT_scaled") %>%
+  mutate(Interaction="PAT values",
+         data_type="Target",
+         Corpus="French")
+
+age.PAQ_L_T <- effect('age_scaled*PAQ_scaled_target', model3_L_T,
+                      xlevels=list(age_scaled=c(-1, 0, 1),
+                                   se=TRUE, confidence.level=.95, typical=mean))
+
+age.PAQ_L_T <- as.data.frame(age.PAQ_L_T)
+
+age.PAQ_L_T$age_scaled <- factor(age.PAQ_L_T$age_scaled,
+                                 levels=c(-1, 0, 1),
+                                 labels=c("-1SD", "Mean", "+1SD"))
+
+age.PAQ_L_T$PAQ_scaled_target <- factor(age.PAQ_L_T$PAQ_scaled_target)
+
+age.PAQ_L_T <- age.PAQ_L_T %>%
+  rename("factor"="PAQ_scaled_target") %>%
+  mutate(Interaction="PAQ values",
+         data_type="Target",
+         Corpus="French")
+
+T_slopes <- rbind(age.length_L_A, age.PAT_L_A, age.length_L_T, age.PAT_L_T, age.PAQ_L_A, age.PAQ_L_T)
+all_slopes <- rbind(P_slopes, T_slopes)
+#all_slopes$factor <- fct_inseq(all_slopes)
+
+Plot.slopes <- ggplot(data=subset(all_slopes, Interaction == "PAT values" | Interaction == "PAQ values"), aes(x=(as.numeric(as.character(factor), decreasing=TRUE)), y=fit, group=age_scaled))+
+        #geom_rect(data=subset(all_slopes, Corpus == 'French' & (Interaction == "PAT values" | Interaction == "PAQ values"))) +  #aes(fill=Corpus),xmin=-Inf,xmax=Inf,
+#              ymin=-Inf,ymax=Inf,alpha=0.1, fill="gray90") +
+  geom_smooth(size=2, aes(color=age_scaled)) +
+  scale_colour_discrete(name="Age") +
+  #ylim(0,.4)+
+  ylab("Predicted probability of a word being \nlearned in the following month")+
+  xlab("Growth value (scaled)")+
+  #ggtitle("Age * PAQ Values (English, Actual)") +
+  #guides(color=guide_legend(override.aes=list(fill=NA))) +
+  theme_bw(base_size=14) +
+  theme(#    panel.grid.major=element_blank(),
+   # panel.grid.minor=element_blank(),
+    legend.title=element_blank(),
+        legend.position="bottom") +
+  facet_grid(vars(data_type), vars(Interaction), scales="free")
+```
+
+```{r Table all slopes, message=FALSE, warning=FALSE}
+
+all.slopes.table <- rbind(age_freq_P_A, age_freq_P_T, 
+                          age_length_P_T, 
+                          age_length_L_A, age_length_L_T, 
+                          age_PAT_L_A, age_PAT_L_T, 
+                          age_PAQ_L_A, age_PAQ_L_T)
+
+```
+
+```{r table-all-slopes, echo=F, message=FALSE, warning=FALSE, comment=F}
+cap="Simple slopes analyses taken at the mean and ±1SD around the mean scaled age in the dataset for each signficiant interaction in the logistic regression models in the English and French data. All values are z-scored."
+
+kable(all.slopes.table, "latex", booktabs=T, longtable=T, 
+      caption=cap, digits=0, align="c")  %>%
+  kable_styling()%>%
+  row_spec(3, hline_after=T) %>%
+  row_spec(6, hline_after=T) %>%
+  row_spec(9, hline_after=T) %>%
+  row_spec(12, hline_after=T) %>%
+  row_spec(15, hline_after=T) %>%  
+  row_spec(18, hline_after=T) %>%
+  row_spec(21, hline_after=T) %>%
+  row_spec(24, hline_after=T)
+```
+
+Following Siew and Vitevitch's [-@siew_investigation_2020] approach, simple slopes analyses were performed on both corpora, for both Target and Actual data, on all significant interactions reported from the maximal model outputs (model 3, including both PAT and PAQ values) above, with all other predictors in the model fixed at the mean. Slopes were analysed at the mean scaled age in the data, and ±1SD around this value. H2 predicted a stronger effect for PAT-like growth in earlier development, but given that only the French data showed significant Age x PAT (as well as PAQ) interactions, this prediction does not appear to be supported by the data. This will be explored further below. Plots are shown in Figure \@ref(fig:figure-plot-slopes).
+
+```{r figure-plot-slopes, echo=FALSE, fig.cap=cap, fig.pos='H', message=FALSE, warning=FALSE}
+plot(Plot.slopes)
+cap <- sprintf("Interaction plot showing effect of Age * PAT/PAQ growth value interaction on predicted learning outcomes in both Target and Actual data (French data only). Lines show mean AoP (z-scored) and +/- 1SD around the mean. PAT/PAQ values are z-scored.")
+```
+
+All outcomes from the simple slopes analyses are shown in Table \@ref(tab:table-all-slopes). Looking first at the English data, more frequent words were acquired predictably at all three time-points, and the effect of word frequency increased with age in both Actual and Target data. The Age x Frequency interaction was significant in the Target data only, while shorter words were more likely to be acquired across all three time-points; this tendency diminished over time.
+
+Looking now at the French data, word length and both PAT and PAQ values interacted with age in both Actual and Target data. Shorter words tended to be acquired earlier, and this effect diminished with age, to the extent that the slope taken at the later time-point was not significant, in both Actual and Target data. Turning to predictions set out in H2, analysis of the Age x PAT interaction did not support this: only the earlier slope shows a significant interaction, whereby words with *lower* PAT values were more likely to be acquired in early development in both Actual and Target data. This trend diminishes with age, such that later slopes are no longer significant in the Actual data, and the extent of the effect is smaller in the Target data, though still negative, and still significant at the mean time-point. The trends were similar for PAQ values: words with lower PAQ values were acquired earlier, and later slopes did not show a significant effect, in both Actual and Target data.
+
+### Data type comparisons
+
+```{r data type comparison - Providence, message=FALSE, warning=FALSE}
+
+dat_pred_P <- lmer(PAT_scaled ~ data_type +
+                    length_scaled*age_scaled +
+                      freq_scaled*age_scaled +
+                    (1+age_scaled|Speaker),
+                    data=subset(reg_dat_P, age == (AOP-1)))
+
+dat_pred_P_null <- lmer(PAT_scaled ~ #data_type +
+                    length_scaled*age_scaled +
+                      freq_scaled*age_scaled +
+                    (1+age_scaled|Speaker),
+                    data=subset(reg_dat_P, age == (AOP-1)))
+
+dat_pred_model_P <- anova(dat_pred_P, dat_pred_P_null)
+
+dat_pred_model_P_df <- dat_pred_model_P$Df[2]
+dat_pred_model_P_chisq <- dat_pred_model_P$Chisq[2]
+dat_pred_model_P_p.value <- dat_pred_model_P$`Pr(>Chisq)`[2]
+
+model.summary.dat_pred_P <- summary(dat_pred_P)
+
+table.model.summary.dat_pred_P<- model.summary.dat_pred_P$coefficients %>%
+  as.data.frame %>%
+  rename("p"="Pr(>|t|)") %>%
+    mutate(
+    Effect=papaja:::prettify_terms(rownames(.))
+  )
+
+dat.pred_beta_P <- subset(table.model.summary.dat_pred_P, Effect == "Data typetarget")$Estimate
+dat.pred_p_P <- subset(table.model.summary.dat_pred_P, Effect == "Data typetarget")$p
+
+```
+
+```{r data type comparison - Lyon, message=FALSE, warning=FALSE}
+
+dat_pred_L <- lmer(PAT_scaled ~ data_type +
+                    length_scaled*age_scaled +
+                      freq_scaled*age_scaled +
+                    (1+age_scaled|Speaker),
+                    data=subset(reg_dat_L, age == (AOP-1)))
+
+dat_pred_L_null <- lmer(PAT_scaled ~ #data_type +
+                    length_scaled*age_scaled +
+                      freq_scaled*age_scaled +
+                    (1+age_scaled|Speaker),
+                    data=subset(reg_dat_L, age == (AOP-1)))
+
+
+dat_pred_model_L <- anova(dat_pred_L, dat_pred_L_null)
+
+dat_pred_model_L_df <- dat_pred_model_L$Df[2]
+dat_pred_model_L_chisq <- dat_pred_model_L$Chisq[2]
+dat_pred_model_L_p.value <- dat_pred_model_L$`Pr(>Chisq)`[2]
+
+model.summary.dat_pred_L <- summary(dat_pred_L)
+
+table.model.summary.dat_pred_L<- model.summary.dat_pred_L$coefficients %>%
+  as.data.frame %>%
+  rename("p"="Pr(>|t|)") %>%
+    mutate(
+    Effect=papaja:::prettify_terms(rownames(.))
+  )
+
+dat.pred_beta_L <- subset(table.model.summary.dat_pred_L, Effect == "Data typetarget")$Estimate
+dat.pred_p_L <- subset(table.model.summary.dat_pred_L, Effect == "Data typetarget")$p
+
+```
+
+```{r Figure-dat-comp, eval=FALSE, fig.cap=cap, fig.pos='H', message=FALSE, warning=FALSE, include=FALSE}
+plot(dat_comp)
+cap <- sprintf("Density plots showing PAT growth values (z-scored) for both Actual and Target forms in the French and English corpora at each month in the dataset. Dashed lines represent Target data, filled lines represent Actual data. Vertical lines in each plot represent the mean PAT values in the given month.")
+```
+
+In H3, it was predicted that systematicity would be stronger in Actual, compared to Target, data. We would therefore expect PAT values to be higher (indicating more connectivity) in Actual data at each time-point. This analysis only applies to PAT, given that PAQ values do not change month-by-month, and that the global network is generated from Target forms anyway.
+
+To test this hypothesis, a linear mixed-effects regression model was run using the *lmerTest* package in R [@kuznetsova_lmertest_2017]. For each word, data was only included for the month before the word's age of production, such that PAT values indicated connectivity in the learned month, rather than all of the potential months in which the word could have first been produced. The model included PAT growth values as the dependent variable and Data type, Word length, Word frequency and Age as fixed effects. Word length and Word frequency were both qualified with an interaction with Age; subject was included as a random effect with a by-subject random slope included for the effect of Age. French and English data were modeled separately. Likelihood ratio tests comparing models with and without the effect of Data type included revealed a significant difference between the full and the null models (English: $\chi^2 (`r dat_pred_model_P_df`)$=`r dat_pred_model_P_chisq`, *p*=`r printp(dat_pred_model_P_p.value)`; French: ($\chi^2 (`r dat_pred_model_L_df`)$=`r dat_pred_model_L_chisq`, *p*=`r printp(dat_pred_model_L_p.value)`). In support of H3, in both cases PAT values for the Actual data were significantly higher than those of the Target data (English: *b*=`r printnum(dat.pred_beta_P)`, *p*=`r printp(dat.pred_p_P)`; French: *b*=`r printnum(dat.pred_beta_L)`, *p*=`r printp(dat.pred_p_L)`). 
+
+## Simulated Networks
+
+Finally, network graphs generated from the Target and Actual data of each corpus were compared to simulated small world and random networks of equivalent size to determine whether the data (the *Real* networks) differed from the *Simulated* networks. Recall that PAT-like network growth should reflect a small-world network growth structure. Two key components of small-world networks were compared: mean path length and clustering coefficient. PAT-like network growth (recall that small world networks cannot tell us anything about PAQ-like growth) typically has a low mean path length and a high clustering coefficient; we would expect the Real data to differ significantly from the Simulated Erdős–Rényi network, and to see no statistical difference between the Real network and the Simulated Watts-Strogatz network. Below, the two measures will be discussed in turn, for Target and Actual data from each corpus.
+
+### Mean Path Length
+Mean path length was calculated for each child's monthly networks using the *igraph()* package in R [@R-igraph]. For both Target and Actual data, an equivalent-sized Watts-Strogatz network was generated, and a single Erdős–Rényi network. Watts-Strogatz simulations match both the mean degree and the network size of each network in each month, and so two separate networks were generated for Target and Actual data to reflect the different properties of each. Erdős–Rényi networks require only network size to be specified - as this is constant across Target and Actual data, only one such network was generated per month. Mixed effects linear regression models were generated for each corpus, with mean path length as the dependent variable, a Data type (Real-Target, Real-Actual, Watts-Strogatz-Target, Watts-Strogatz-Actual and Erdős–Rényi) x Age interaction included as a fixed effect, and Subject as a random effect. Age was initially included as a by-Subject random slope, but the model would not converge and so this was removed.
+
+```{r small world properties - path length, message=FALSE, warning=FALSE}
+
+SWD_red <- globalsmallworlddata[which(complete.cases(globalsmallworlddata[,c('path_length', 'clust_coef_global', 'clust_coef_avg')])),]
+
+# Providence
+
+global_pathlength_model_A_P <- lmerTest::lmer(path_length ~ data_type * age + (1|Speaker),
+                                             data=subset(SWD_red,
+                                                           corpus == "English"
+                                                           ),
+                                       REML=FALSE)
+#summary(global_pathlength_model_A_P)
+
+
+global_pathlength_model_A_P_null <- lmerTest::lmer(path_length ~ age + (1|Speaker),
+                                             data=subset(SWD_red,
+                                                           corpus == "English"),
+                                       REML=FALSE)
+
+pathlength_WS_A_P <- anova(global_pathlength_model_A_P, global_pathlength_model_A_P_null)
+
+pathlength_WS_A_P_df <- pathlength_WS_A_P$Df[2]
+pathlength_WS_A_P_chisq <- pathlength_WS_A_P$Chisq[2]
+pathlength_WS_A_P_p.value <- pathlength_WS_A_P$`Pr(>Chisq)`[2]
+
+# Lyon
+
+global_pathlength_model_A_L <- lmer(path_length ~ data_type*age + (1|Speaker),
+                                             data=subset(SWD_red,
+                                                           corpus == "French"),
+                                       REML=FALSE)
+
+#summary(global_pathlength_model_A_L)
+
+global_pathlength_model_A_L_null <- lmer(path_length ~ age + (1|Speaker),
+                                             data=subset(SWD_red,
+                                                           corpus == "French"),
+                                       REML=FALSE)
+
+pathlength_WS_A_L <- anova(global_pathlength_model_A_L, global_pathlength_model_A_L_null)
+
+pathlength_WS_A_L_df <- pathlength_WS_A_L$Df[2]
+pathlength_WS_A_L_chisq <- pathlength_WS_A_L$Chisq[2]
+pathlength_WS_A_L_p.value <- pathlength_WS_A_L$`Pr(>Chisq)`[2]
+
+```
+
+Model comparisons with both English and French data revealed a significant main effect for Data type (English: $\chi^2 (`r pathlength_WS_A_P_df`)$=`r pathlength_WS_A_P_chisq`, *p* `r printp(pathlength_WS_A_P_p.value)`; French: $\chi^2 (`r pathlength_WS_A_L_df`)$=`r pathlength_WS_A_L_chisq`, *p* `r printp(pathlength_WS_A_L_p.value)`). Follow-up models were run for each corpus on only Target/Actual data (Real Target vs. Simulated Target vs. Erdős–Rényi, and Real Actual vs. Simulated Actual vs. Erdős–Rényi) to establish differences between the Real and Simulated data. See Figure \@ref(fig:Figure-path-length).
+
+```{r Figure-path-length, echo=FALSE, fig.cap=cap, fig.pos='H', message=FALSE, warning=FALSE}
+plot(path_length_all)
+cap <- sprintf("Change in mean path length over time, in Real data (Actual or Target) compared with Watts-Strogatz and Erdos-Renyi simulations representing small-world and random network growth properties, respectively. Coloured lines represent Data type; grey bands represent 95%% CIs.")
+```
+
+
+```{r path length follow up models - providence, message=FALSE, warning=FALSE}
+
+# Actual
+
+global_pathlength_betas_A_P <- lmerTest::lmer(path_length ~ data_type * age + (1|Speaker),
+                                             data=subset(SWD_red,
+                                                           corpus == "English" &
+                                                             data_type %in% c("actual", "WS_actual", "Erdos_Renyi")
+                                                           ),
+                                       REML=FALSE)
+
+global_pathlength_betas_A_P_data <- summary(global_pathlength_betas_A_P)
+
+table.pathlength_A_P <- global_pathlength_betas_A_P_data$coefficients %>%
+  as.data.frame %>%
+  rename(
+    "beta"="Estimate"
+     , "SE"="Std. Error"
+     , "t"="t value"
+     , "p"="Pr(>|t|)"
+  ) %>%
+  mutate(
+    Effect=papaja:::prettify_terms(rownames(.))
+  ) %>%
+  printnum(
+    digits=c(2, 2, 2, 3)
+    , gt1=c(TRUE, TRUE, TRUE, TRUE)
+    , zero=c(TRUE, TRUE, TRUE, TRUE)
+  ) %>%
+  select(Effect, `beta`, `SE`, `t`, `p`) %>%
+    mutate(Effect=fct_recode(Effect,
+                           `Real vs. Erdos Renyi`="Data typeErdos Renyi",
+                           `Real vs. Watts-Strogatz`="Data typeWS actual",
+                           `Erdos Renyi x Age`="Data typeErdos Renyi $\\times$ Age",
+                           `Watts-Strogatz x Age`="Data typeWS actual $\\times$ Age")) %>%
+  mutate(
+    beta=as.numeric(beta),
+    `p`=as.numeric(`p`)
+  )
+
+rownames(table.pathlength_A_P) <- NULL
+
+# Target
+
+global_pathlength_betas_T_P <- lmerTest::lmer(path_length ~ data_type * age + (1|Speaker),
+                                             data=subset(SWD_red,
+                                                           corpus == "English" &
+                                                             data_type %in% c("target", "WS_target", "Erdos_Renyi")
+                                                           ),
+                                       REML=FALSE)
+
+global_pathlength_betas_T_P_data <- summary(global_pathlength_betas_T_P)
+
+table.pathlength_T_P <- global_pathlength_betas_T_P_data$coefficients %>%
+  as.data.frame %>%
+  rename(
+    "beta"="Estimate"
+     , "SE"="Std. Error"
+     , "t"="t value"
+     , "p"="Pr(>|t|)"
+  ) %>%
+  mutate(
+    Effect=papaja:::prettify_terms(rownames(.))
+  ) %>%
+  printnum(
+    digits=c(2, 2, 2, 3)
+    , gt1=c(TRUE, TRUE, TRUE, TRUE)
+    , zero=c(TRUE, TRUE, TRUE, TRUE)
+  ) %>%
+  select(Effect, `beta`, `SE`, `t`, `p`) %>%
+    mutate(Effect=fct_recode(Effect,
+                           `Real vs. Erdos Renyi`="Data typetarget",
+                           `Real vs. Watts-Strogatz`="Data typeWS target",
+                           `Erdos Renyi x Age`="Data typetarget $\\times$ Age",
+                           `Watts-Strogatz x Age`="Data typeWS target $\\times$ Age")) %>%
+  mutate(
+    beta=as.numeric(beta)
+  #, `p`=as.numeric(`p`)
+  )
+
+rownames(table.pathlength_T_P) <- NULL
+
+table.pathlength_P <- cbind(table.pathlength_A_P, table.pathlength_T_P)
+table.pathlength_P <- table.pathlength_P[,-6]
+table.pathlength_P$Corpus <- "English"
+
+pathlength_ER_A_P_beta <- subset(table.pathlength_A_P, Effect == "Real vs. Erdos Renyi")$`beta`
+pathlength_ER_A_P_p <- subset(table.pathlength_A_P, Effect == "Real vs. Erdos Renyi")$p
+pathlength_ER_T_P_beta <- subset(table.pathlength_T_P, Effect == "Real vs. Erdos Renyi")$beta
+pathlength_ER_T_P_p <- subset(table.pathlength_T_P, Effect == "Real vs. Erdos Renyi")$p
+
+pathlength_WS_A_P_beta <- subset(table.pathlength_A_P, Effect == "Real vs. Watts-Strogatz")$beta
+pathlength_WS_A_P_p <- subset(table.pathlength_A_P, Effect == "Real vs. Watts-Strogatz")$p
+pathlength_WS_T_P_beta <- subset(table.pathlength_T_P, Effect == "Real vs. Watts-Strogatz")$beta
+pathlength_WS_T_P_p <- subset(table.pathlength_T_P, Effect == "Real vs. Watts-Strogatz")$p
+```
+
+```{r path length follow up models - lyon, message=FALSE, warning=FALSE}
+
+# Actual
+
+global_pathlength_betas_A_L <- lmerTest::lmer(path_length ~ data_type * age + (1|Speaker),
+                                             data=subset(SWD_red,
+                                                           corpus == "French" &
+                                                             data_type %in% c("actual", "WS_actual", "Erdos_Renyi")
+                                                           ),
+                                       REML=FALSE)
+
+global_pathlength_betas_A_L_data <- summary(global_pathlength_betas_A_L)
+
+table.pathlength_A_L <- global_pathlength_betas_A_L_data$coefficients %>%
+  as.data.frame %>%
+  rename(
+    "beta"="Estimate"
+     , "SE"="Std. Error"
+     , "t"="t value"
+     , "p"="Pr(>|t|)"
+  ) %>%
+  mutate(
+    Effect=papaja:::prettify_terms(rownames(.))
+  ) %>%
+  printnum(
+    digits=c(2, 2, 2, 3)
+    , gt1=c(TRUE, TRUE, TRUE, TRUE)
+    , zero=c(TRUE, TRUE, TRUE, TRUE)
+  ) %>%
+  select(Effect, `beta`, `SE`, `t`, `p`) %>%
+    mutate(Effect=fct_recode(Effect,
+                           `Real vs. Erdos Renyi`="Data typeErdos Renyi",
+                           `Real vs. Watts-Strogatz`="Data typeWS actual",
+                           `Erdos Renyi x Age`="Data typeErdos Renyi $\\times$ Age",
+                           `Watts-Strogatz x Age`="Data typeWS actual $\\times$ Age")) %>%
+  mutate(
+    beta=as.numeric(beta),
+    p=as.numeric(p)
+    )
+
+rownames(table.pathlength_A_L) <- NULL
+
+# Target
+
+global_pathlength_betas_T_L <- lmerTest::lmer(path_length ~ data_type * age + (1|Speaker),
+                                             data=subset(SWD_red,
+                                                           corpus == "English" &
+                                                             data_type %in% c("target", "WS_target", "Erdos_Renyi")
+                                                           ),
+                                       REML=FALSE)
+
+global_pathlength_betas_T_L_data <- summary(global_pathlength_betas_T_L)
+
+table.pathlength_T_L <- global_pathlength_betas_T_L_data$coefficients %>%
+  as.data.frame %>%
+  rename(
+    "beta"="Estimate"
+     , "SE"="Std. Error"
+     , "t"="t value"
+     , "p"="Pr(>|t|)"
+  ) %>%
+  mutate(
+    Effect=papaja:::prettify_terms(rownames(.))
+  ) %>%
+  printnum(
+    digits=c(2, 2, 2, 3)
+    , gt1=c(TRUE, TRUE, TRUE, TRUE)
+    , zero=c(TRUE, TRUE, TRUE, TRUE)
+  ) %>%
+  select(Effect, `beta`, `SE`, `t`, `p`) %>%
+    mutate(Effect=fct_recode(Effect,
+                           `Real vs. Erdos Renyi`="Data typetarget",
+                           `Real vs. Watts-Strogatz`="Data typeWS target",
+                            `Erdos Renyi x Age`="Data typetarget $\\times$ Age",
+                            `Watts-Strogatz x Age`="Data typeWS target $\\times$ Age")) %>%
+  mutate(
+      beta=as.numeric(beta)
+    #, p=as.numeric(p)
+  )
+
+rownames(table.pathlength_T_L) <- NULL
+
+table.pathlength_L <- cbind(table.pathlength_A_L, table.pathlength_T_L)
+table.pathlength_L <- table.pathlength_L[,-6]
+table.pathlength_L$Corpus <- "French"
+
+table.pathlength <- rbind(table.pathlength_P, table.pathlength_L)
+rownames(table.pathlength) <- NULL
+table.pathlength <- table.pathlength %>% dplyr::select(Effect, Corpus, beta, SE, t, p, beta.1, SE.1, t.1, p.1)
+
+
+pathlength_ER_A_L_beta <- subset(table.pathlength_A_L, Effect == "Real vs. Erdos Renyi")$beta
+pathlength_ER_A_L_p <- subset(table.pathlength_A_L, Effect == "Real vs. Erdos Renyi")$p
+pathlength_ER_T_L_beta <- subset(table.pathlength_T_L, Effect == "Real vs. Erdos Renyi")$beta
+pathlength_ER_T_L_p <- subset(table.pathlength_T_L, Effect == "Real vs. Erdos Renyi")$p
+
+pathlength_WS_A_L_beta <- subset(table.pathlength_A_L, Effect == "Real vs. Watts-Strogatz")$beta
+pathlength_WS_A_L_p <- subset(table.pathlength_A_L, Effect == "Real vs. Watts-Strogatz")$p
+pathlength_WS_T_L_beta <- subset(table.pathlength_T_L, Effect == "Real vs. Watts-Strogatz")$beta
+pathlength_WS_T_L_p <- subset(table.pathlength_T_L, Effect == "Real vs. Watts-Strogatz")$p
+
+```
+
+```{r table-pathlength, comment=F, message=F, warning=F, echo=F, results="asis"}
+cap="Outputs from linear regression models testing the effect of Real and Simulated data on path length. English and French data, both Actual and Target."
+knitr::kable(table.pathlength, "latex", booktabs=T, longtable=T, caption=cap, digits=2, align="c", 
+                       col.names=gsub("[.1]", "", names(table.pathlength))) %>%
+  add_header_above(c(" "=2, "Actual"=4, "Target"=4))
+```
+
+For both Actual and Target data in both corpora, the Real data differed significantly from the random Erdős–Rényi network, as predicted. See Table \@ref(tab:table-pathlength). Again as predicted, in both cases the Actual data did not differ from the Simulated Watts-Strogatz model, though the opposite was true for the Target data. These outcomes are consistent with predictions in H3.
+
+```{r Figure-clust-coef, echo=FALSE, fig.cap=cap, fig.pos='H', message=FALSE, warning=FALSE}
+#par(cex=1.2)
+plot(clust_coef_all)
+cap <- sprintf("Change in mean clustering coefficient over time, in Real data (Actual or Target) compared with Watts-Strogatz and Erdos-Renyi simulations representing small-world and random network growth properties, respectively. Coloured lines represent Data type; grey bands represent 95%% CIs.")
+```
+
+## Clustering Coefficient
+
+Similarly, average clustering coefficient was calculated for each child's monthly networks using the *igraph()* package, for both the Real and Simulated data. As Figure \@ref(fig:Figure-clust-coef) shows, in both corpora, this variable was lower in the Simulated data than the Real data, in both Target and Actual forms. As above, mixed effects linear regression models were generated for each corpus; the same model structure was used, but this time with average clustering coefficient as the dependent variable.
+
+```{r small world properties - clustering coefficient, message=FALSE, warning=FALSE}
+
+# Providence
+
+global_clust_model_A_P <- lmerTest::lmer(clust_coef_avg ~ data_type * age + (1|Speaker),
+                                             data=subset(SWD_red,
+                                                           corpus == "English"
+                                                           ),
+                                       REML=FALSE)
+#summary(global_clust_model_A_P)
+
+global_clust_model_A_P_null <- lmerTest::lmer(clust_coef_avg ~ age + (1|Speaker),
+                                             data=subset(SWD_red,
+                                                           corpus == "English"),
+                                       REML=FALSE)
+
+clust_WS_A_P <- anova(global_clust_model_A_P, global_clust_model_A_P_null)
+
+clust_WS_A_P_df <- clust_WS_A_P$Df[2]
+clust_WS_A_P_chisq <- clust_WS_A_P$Chisq[2]
+clust_WS_A_P_p.value <- clust_WS_A_P$`Pr(>Chisq)`[2]
+
+# Lyon
+
+global_clust_model_A_L <- lmer(path_length ~ data_type*age + (1|Speaker),
+                                             data=subset(SWD_red,
+                                                           corpus == "French"),
+                                       REML=FALSE)
+
+#summary(global_clust_model_A_L)
+
+global_clust_model_A_L_null <- lmer(path_length ~ age + (1|Speaker),
+                                             data=subset(SWD_red,
+                                                           corpus == "French"),
+                                       REML=FALSE)
+
+clust_WS_A_L <- anova(global_clust_model_A_L, global_clust_model_A_L_null)
+
+clust_WS_A_L_df <- clust_WS_A_L$Df[2]
+clust_WS_A_L_chisq <- clust_WS_A_L$Chisq[2]
+clust_WS_A_L_p.value <- clust_WS_A_L$`Pr(>Chisq)`[2]
+
+```
+
+Again model comparisons revealed a significant main effect for Data type (English: $\chi^2 (`r clust_WS_A_P_df`)$=`r clust_WS_A_P_chisq`, *p* `r printp(clust_WS_A_P_p.value)`; French: $\chi^2 (`r clust_WS_A_L_df`)$=`r clust_WS_A_L_chisq`, *p* `r printp(clust_WS_A_L_p.value)`).
+
+```{r clust coef follow up models - providence, message=FALSE, warning=FALSE}
+
+# Actual
+
+global_clust_betas_A_P <- lmerTest::lmer(clust_coef_avg ~ data_type * age + (1|Speaker),
+                                             data=subset(SWD_red,
+                                                           corpus == "English" &
+                                                             data_type %in% c("actual", "WS_actual", "Erdos_Renyi")
+                                                           ),
+                                       REML=FALSE)
+
+global_clust_betas_A_P_data <- summary(global_clust_betas_A_P)
+
+table.clust_A_P <- global_clust_betas_A_P_data$coefficients %>%
+  as.data.frame %>%
+  rename(
+    "beta"="Estimate"
+     , "SE"="Std. Error"
+     , "t"="t value"
+     , "p"="Pr(>|t|)"
+  ) %>%
+  mutate(
+    Effect=papaja:::prettify_terms(rownames(.))
+  ) %>%
+  printnum(
+    digits=c(2, 2, 2, 3)
+    , gt1=c(TRUE, TRUE, TRUE, TRUE)
+    , zero=c(TRUE, TRUE, TRUE, TRUE)
+  ) %>%
+  select(Effect, `beta`, `SE`, `t`, `p`) %>%
+    mutate(Effect=fct_recode(Effect,
+                           "Real vs. Erdos Renyi"="Data typeErdos Renyi",
+                            "Real vs. Watts-Strogatz"="Data typeWS actual",
+                            "Erdos Renyi x Age"="Data typeErdos Renyi $\\times$ Age",
+                            "Watts-Strogatz x Age"="Data typeWS actual $\\times$ Age")) %>%
+  mutate(
+    beta=as.numeric(beta),
+    p=as.numeric(p))
+
+# Target
+
+global_clust_betas_T_P <- lmerTest::lmer(clust_coef_avg ~ data_type * age + (1|Speaker),
+                                             data=subset(SWD_red,
+                                                           corpus == "English" &
+                                                             data_type %in% c("target", "WS_target", "Erdos_Renyi")
+                                                           ),
+                                       REML=FALSE)
+
+global_clust_betas_T_P_data <- summary(global_clust_betas_T_P)
+
+table.clust_T_P <- global_clust_betas_T_P_data$coefficients %>%
+  as.data.frame %>%
+  rename(
+    "beta"="Estimate"
+     , "SE"="Std. Error"
+     , "t"="t value"
+     , "p"="Pr(>|t|)"
+  ) %>%
+  mutate(
+    Effect=papaja:::prettify_terms(rownames(.))
+  ) %>%
+  printnum(
+    digits=c(2, 2, 2, 3)
+    , gt1=c(TRUE, TRUE, TRUE, TRUE)
+    , zero=c(TRUE, TRUE, TRUE, TRUE)
+  ) %>%
+  select(Effect, `beta`, `SE`, `t`, `p`) %>%
+    mutate(Effect=fct_recode(Effect,
+                           "Real vs. Erdos Renyi"="Data typetarget",
+                            "Real vs. Watts-Strogatz"="Data typeWS target",
+                            "Erdos Renyi x Age"="Data typetarget $\\times$ Age",
+                            "Watts-Strogatz x Age"="Data typeWS target $\\times$ Age")) %>%
+  mutate(
+    beta=as.numeric(beta),
+    p=as.numeric(p)
+
+  )
+
+table.clust_P <- cbind(table.clust_A_P, table.clust_T_P)
+table.clust_P <- table.clust_P[,-6]
+rownames(table.clust_P) <- NULL
+table.clust_P$Corpus <- "English"
+
+clust_ER_A_P_beta <- subset(table.clust_A_P, Effect == "Real vs. Erdos Renyi")$beta
+clust_ER_A_P_p <- subset(table.clust_A_P, Effect == "Real vs. Erdos Renyi")$p
+clust_ER_T_P_beta <- subset(table.clust_T_P, Effect == "Real vs. Erdos Renyi")$beta
+clust_ER_T_P_p <- subset(table.clust_T_P, Effect == "Real vs. Erdos Renyi")$p
+
+clust_WS_A_P_beta <- subset(table.clust_A_P, Effect == "Real vs. Watts-Strogatz")$beta
+clust_WS_A_P_p <- subset(table.clust_A_P, Effect == "Real vs. Watts-Strogatz")$p
+clust_WS_T_P_beta <- subset(table.clust_T_P, Effect == "Real vs. Watts-Strogatz")$beta
+clust_WS_T_P_p <- subset(table.clust_T_P, Effect == "Real vs. Watts-Strogatz")$p
+
+```
+
+```{r clust coef follow up models - lyon, message=FALSE, warning=FALSE}
+
+# Actual
+
+global_clust_betas_A_L <- lmerTest::lmer(clust_coef_avg ~ data_type * age + (1|Speaker),
+                                             data=subset(SWD_red,
+                                                           corpus == "French" &
+                                                             data_type %in% c("actual", "WS_actual", "Erdos_Renyi")
+                                                           ),
+                                       REML=FALSE)
+
+global_clust_betas_A_L_data <- summary(global_clust_betas_A_L)
+
+table.clust_A_L <- global_clust_betas_A_L_data$coefficients %>%
+  as.data.frame %>%
+  rename(
+    "beta"="Estimate"
+     , "SE"="Std. Error"
+     , "t"="t value"
+     , "p"="Pr(>|t|)"
+  ) %>%
+  mutate(
+    Effect=papaja:::prettify_terms(rownames(.))
+  ) %>%
+  printnum(
+    digits=c(2, 2, 2, 3)
+    , gt1=c(TRUE, TRUE, TRUE, TRUE)
+    , zero=c(TRUE, TRUE, TRUE, TRUE)
+  ) %>%
+  select(Effect, beta, `SE`, `t`, `p`) %>%
+    mutate(Effect=fct_recode(Effect,
+                           "Real vs. Erdos Renyi"="Data typeErdos Renyi",
+                            "Real vs. Watts-Strogatz"="Data typeWS actual",
+                            "Erdos Renyi x Age"="Data typeErdos Renyi $\\times$ Age",
+                            "Watts-Strogatz x Age"="Data typeWS actual $\\times$ Age")) %>%
+    mutate(
+    beta=as.numeric(beta),
+    `p`=as.numeric(`p`)
+
+  )
+
+# Target
+
+global_clust_betas_T_L <- lmerTest::lmer(clust_coef_avg ~ data_type * age + (1|Speaker),
+                                             data=subset(SWD_red,
+                                                           corpus == "English" &
+                                                             data_type %in% c("target", "WS_target", "Erdos_Renyi")
+                                                           ),
+                                       REML=FALSE)
+
+global_clust_betas_T_L_data <- summary(global_clust_betas_T_L)
+
+table.clust_T_L <- global_clust_betas_T_L_data$coefficients %>%
+  as.data.frame %>%
+  rename(
+    "beta"="Estimate"
+     , "SE"="Std. Error"
+     , "t"="t value"
+     , "p"="Pr(>|t|)"
+  ) %>%
+  mutate(
+    Effect=papaja:::prettify_terms(rownames(.))
+  ) %>%
+  printnum(
+    digits=c(2, 2, 2, 3)
+    , gt1=c(TRUE, TRUE, TRUE, TRUE)
+    , zero=c(TRUE, TRUE, TRUE, TRUE)
+  ) %>%
+  select(Effect, `beta`, `SE`, `t`, p) %>%
+  mutate(Effect=fct_recode(Effect,
+                           "Real vs. Erdos Renyi"="Data typetarget",
+                            "Real vs. Watts-Strogatz"="Data typeWS target",
+                            "Erdos Renyi x Age"="Data typetarget $\\times$ Age",
+                            "Watts-Strogatz x Age"="Data typeWS target $\\times$ Age")) %>%
+  mutate(
+    beta=as.numeric(beta),
+    p=as.numeric(p)
+
+  )
+
+table.clust_L <- cbind(table.clust_A_L, table.clust_T_L)
+table.clust_L <- table.clust_L[,-6]
+rownames(table.clust_L) <- NULL
+table.clust_L$Corpus <- "French"
+table.clust <- rbind(table.clust_P, table.clust_L)
+
+table.clust <- table.clust %>% dplyr::select(Effect, Corpus, beta, SE, t, p, beta.1, SE.1, t.1, p.1)
+
+clust_ER_A_L_beta <- subset(table.clust_A_L, Effect == "Real vs. Erdos Renyi")$beta
+clust_ER_A_L_p <- subset(table.clust_A_L, Effect == "Real vs. Erdos Renyi")$p
+clust_ER_T_L_beta <- subset(table.clust_T_L, Effect == "Real vs. Erdos Renyi")$beta
+clust_ER_T_L_p <- subset(table.clust_T_L, Effect == "Real vs. Erdos Renyi")$p
+
+clust_WS_A_L_beta <- subset(table.clust_A_L, Effect == "Real vs. Watts-Strogatz")$beta
+clust_WS_A_L_p <- subset(table.clust_A_L, Effect == "Real vs. Watts-Strogatz")$p
+clust_WS_T_L_beta <- subset(table.clust_T_L, Effect == "Real vs. Watts-Strogatz")$beta
+clust_WS_T_L_p <- subset(table.clust_T_L, Effect == "Real vs. Watts-Strogatz")$p
+
+```
+
+```{r table-clust, comment=F, message=F, warning=F, echo=F, results="asis"}
+cap="Outputs from linear regression models testing the effect of Real and Simulated data on mean clustering coefficient. English and French data, both Actual and Target."
+knitr::kable(table.clust, "latex", booktabs=T, longtable=T, caption=cap, digits=2, align="c", 
+                       col.names=gsub("[.1]", "", names(table.clust))) %>%
+  kable_styling()%>%
+  row_spec(6, bold=F, hline_after=T) %>%
+  add_header_above(c(" "=2, "Actual"=4, "Target"=4))
+```
+
+Model outputs are shown in Table \@ref(tab:table-clust). Again, across both corpora the Real (Actual and Target) data differed significantly from the random Erdős–Rényi network. However, this time only the Actual data in the English corpus showed no difference between the Real and the Simulated Watts-Strogatz data; in the French data, this was marginally significant. Again, this lends support (albeit partial in this case) to H3.
+
+# Discussion
+
+```{r discussion calculations}
+
+mean_PAT_P <- reg_dat_P %>% filter(age == (AOP-1)) %>% group_by(data_type) %>% summarise(meanPAT = mean(PAT_scaled))
+mean_PAT_L <- reg_dat_L %>% filter(age == (AOP-1)) %>% group_by(data_type) %>% summarise(meanPAT = mean(PAT_scaled))
+
+mean_PAT_diff_P <- (subset(mean_PAT_P, data_type == "actual")$meanPAT - subset(mean_PAT_P, data_type == "target")$meanPAT)*100
+mean_PAT_diff_L <- (subset(mean_PAT_L, data_type == "actual")$meanPAT - subset(mean_PAT_L, data_type == "target")$meanPAT)*100
+
+```
+
+This study tested two established frameworks of network growth in the context of early phonological development: preferential attachment (PAT) and preferential acquisition (PAQ) [@fourtassi_growth_2020; @hills_longitudinal_2009; @siew_investigation_2020]. Using naturalistic data to quantify infants' actual productions of word forms, it was possible to establish similarity (or connectedness) across the phonological properties of infants' early words, and map how this changes over time. Based on previous analyses showing that infants' early productions tend to share phonological and prosodic properties [e.g. @vihman_prosodic_2016; @waterson_child_1971; see also @vihman_emergence_2013], it was hypothesised that the early vocabulary would grow in a PAT-like manner (H1) -- that is, should constitute dense clusters of similar-sounding forms -- and that acquisition should be most systematic earlier on in development (H2). Expanding on two key studies in this area [@fourtassi_growth_2020; @siew_investigation_2020], it was also predicted that a network consisting of infants' actual productions (that is, the child's *realization* of the target forms) should demonstrate more typical PAT-like growth than an equivalent network constituting just the target forms (H3).
+
+Two of these predictions were supported by the data. First, in support of H1, while network growth models showed evidence for both PAT- and PAQ-like growth, this was consistently more strongly in favour of PAT. That is, in a given month, infants tended to produce words that connected to more densely-connected words in the existing network. Overall, newly-acquired words were produced in a similar way to existing words in the network, such that they form dense clusters of similar-sounding forms. While PAT was a better predictor of acquisition, PAQ also significantly predicted word learning (alongside PAT) in the English Actual and French Target data. This is consistent with previous findings showing that PAT and PAQ are not necessarily mutually exclusive models of network growth [@amatuni_semantic_2017; @fourtassi_growth_2020; @siew_investigation_2020]. 
+
+Second, in support of H3, PAT-like growth was more convincing for the Actual than the Target data: nested model comparisons revealed that data type (Actual versus Target) accounted for significant variance in PAT values, whereby Target data had significantly lower PAT values than Actual data. In the English data, PAT values were `r round(mean_PAT_diff_P)`% lower in the Target data on average, and in the French data this difference was substantial, with `r round(mean_PAT_diff_L)`% lower Target PAT values. This reveals that infants' Actual phonological networks develop in a more systematic way than we would expect from looking only at Target forms.
+
+The analysis of small-world network properties partially supported these two hypotheses. When compared with simulated small-world networks (Watts-Strogatz models), Actual -- but not Target -- data resembled a prototypical PAT-like network in the English corpus; that is, there was no statistical difference between the Actual data and the simulated PAT-like model. In the French corpus the results were less clear, but still showed partial support for PAT-like network growth in the Actual data. In both corpora, Target data differed significantly from the prototypical PAT-like network. Given that this component of the analysis cannot be extended to include an analysis of PAQ, direct comparisons between PAT and PAQ cannot be made, but results suggest PAT-like growth in the Actual data over and above the Target data.
+
+Hypothesis 2 predicted that PAT-like network growth would be stronger in earlier development, based on previous analyses that show infants' earliest words to be phonologically similar [e.g. @deuchar_bilingual_2000]. However, results were inconsistent: the English corpus showed no interaction between age and PAT values, and in the French corpus earlier-acquired words tended to have *lower* PAT values in both Target and Actual data. Results for PAQ were similarly inconsistent: the French Target data showed that earlier-acquired words had lower PAQ values, while in the English Actual data higher PAQ values predicted earlier acquisition. These differential results could reflect the complexities of between-child analyses, where each child may approach the acquisition process in a slightly different way. A larger sample size may allow more holistic generalizations to be made about changes over time; connectivity across the nine networks differed in this data, and these differences may not be corpus- or language-specific, but may reflect the variability expected across early language development. 
+
+The present analysis sheds new light on systematicity in early language acquisition, specifically regarding the role of PAT- and PAQ-like models of phonological development. Previous studies have drawn on age of acquisition data, using the target form as the index of production [@fourtassi_growth_2020; @siew_investigation_2020]. This has allowed study of vocabulary growth across a large sample, and findings have presented a new perspective on the role of phonological neighbourhoods in early acquisition. However, these analyses have not interrogated the role of *production*. By considering networks in relation to *the way infants produce* their early-acquired words, it has been possible to consider network growth in early acquisition from a novel perspective. The findings presented here reveal a systematic approach to early phonological development, as infants exploit their existing production capacity to produce new words with familiar articulatory routines. These results support many previous studies that show lexical development to take place via the implementation of systematic structures and templates [@vihman_emergence_2013; @vihman_phonological_2019; @waterson_child_1971], and also model a new way of analysing phonological systematicity in infants' early productions, which can be extended to larger samples and applied to a wider variety of languages.
+
+Given that Fourtassi and colleagues [-@fourtassi_growth_2020] analysed data from children of similar ages using the same subset of words (i.e. CDI words), we would expect the current findings to map on to their results, particularly in the analysis of Target data. However, this is not the case: their study reveals consistently stronger evidence for PAQ. This may reflect direct differences in the type of data used: in the present study, the order of acquisition (and thereby the model of network growth) reflects the chronological order of individual children's production in naturalistic data. On the other hand, month-by-month acquisition norms taken from thousands of children's CDIs model an 'average' order of acquisition, whereby words that *tend to* appear earlier in the developing lexicon are biased towards an earlier age of acquisition. Frank and colleagues [-@frank_variability_2021] report the first 10 words of infants acquiring American English, which (for stop consonants only) contain two instances of /m/, three each of /n/ and /d/, five /b/ and one /g/. In naturalistic production, however, a word's phonological form may prime the acquisition of other similar-sounding words: production of *baby* may be shortly followed by other *bib* and *ball* [cf. @mccune_early_2001], while in vocabulary norms, acquisition of *baby*, *bib* and *ball* is represented at the group level. Vocabulary norming data thus represents an 'averaging out' of phonological connectedness across thousands of infants, making it strongly biased towards PAQ-like growth. Previous similar studies perhaps represent a more general, one-size-fits-all trajectory to lexical development, whereas these results capture individual clusters of connectivity as children acquire words that match the phonological characteristics of existing words in the lexicon. 
+
+Indeed, studies of infants' early words show that, on a word-by-word basis, early-acquired forms tend to consist of the same set of consonants, in both target and actual forms. This reflects the child's 'selection' of early words to match their own consonant repertoire [@vihman_phonological_2019; @stoel-gammon_patterns_1984; @mccune_early_2001]. Given that these results show evidence for PAT-like growth in both Actual (English) and Target (English and French) data, it appears that infants are selectively acquiring forms that match their own production preferences, and are either producing these forms accurately (*selected*, in Vihman's terms) or *adapting* them to match their preferred output patterns. Within Vihman's framework, phonological development involves the selection or adaption of lexical units to fit a set of easily-accessible articulatory categories. That is, an infant systematically acts upon new understanding (i.e. acquired receptive vocabulary items) within the limitations of their development, selecting existing categories to deal with challenges presented in production. These are 'well-worn paths' that represent the stable and well-rehearsed production routines that drive selection, and later adaption, of infants' early word forms.
+
+Note that evidence was also found for PAQ-like acquisition, specifically in the French data. This is consistent with previous studies that show a combined role for both PAT and PAQ growth models in lexical (both phonological and semantic) development [@amatuni_semantic_2017; @fourtassi_growth_2020]. Amatuni and Bergelson [-@amatuni_semantic_2017] propose that PAT and PAQ could work together in development, such that PAQ may "[supplement] PAT by providing a structured sampling space for new word selection" (p.5). That is, a combination of PAT and PAQ would provide both internal (output-driven) and external (input-driven) roles in development. Given that acquisition is a dynamic and interactive process [@thelen_esther_dynamic_1996], with ample evidence showing the effects of the input on early word learning [@ambridge_ubiquity_2015; @rowe_longitudinal_2012], it is to be expected that both models would be at work simultaneously during acquisition.
+
+This study raises new questions for future analyses into systematicity in phonological development. While efforts were made to fully characterise the phonological content of infants' early productions -- through using distinctive features with Euclidean, rather than Levenshtein, distance, and observing Actual productions alongside Target forms -- still it was not possible to capture the full extent of systematicity, i.e. the presence of prosodic structures or templates. Future work in this area should expand the analyses to consider the development and systematic implementation of templates. Furthermore, given that analyses of two languages revealed differing results, it would be valuable to extend the approach to yet more languages. Systematicity has been demonstrated across languages [@khattab_influence_2013; @szreder_acquisition_2013; @arnon_first_2011], and so it should be possible to find cross-linguistic commonalities in network growth. Indeed, differences across languages would raise questions about the cognitive reality of systematicity in phonological development. Finally, the regression models included only two additional factors of acquisition -- word length and frequency. To fully encompass the nature of early acquisition, it would be necessary to index additional factors such as word class (given that all word classes on the CDI were included in the analysis) and vocabulary size, both of which are known to affect phonological development [@braginsky_consistency_2019; @jones_chunks_2021].
+
+# Conclusion
+
+This works shows that when naturalistic data is considered within a networks account, we find stronger evidence for PAT-like network growth over PAQ-like growth in both English and French data. English-learning infants acquired words that would connect to the most highly-connected nodes in the existing network (PAT-like growth), whereas in the earliest stages of development French infants preferred words that were less likely to connect to highly-connected nodes. When we look at the target form of the words infants acquire and how they produce them, in both cases we see evidence to show that early acquisition is driven -- at least in part -- by preferences in the output. That is, infants acquire words that cluster together phonologically, and produce them systematically such that early production represents clusters of similar-sounding forms.
+
+[^1]: See Vihman [-@vihman_prosodic_2016; -@vihman_phonological_2019] for a comprehensive discussion of prosodic structures.
+
+[^2]: Vihman [-@vihman_phonological_2019] defines a structure or template as being dominant in the child's lexicon if it constitutes >=10% of all word tokens
+
+[^3]: Note that templates can also show ambient language influences: Vihman and Vihman (ADD) identify an English-Estonian bilingual child's front-rising diphthong template, which is influenced by Estonian but used in the production of both English and Estonian words.
+
+[^4]: A third model - Lure of the Associates - has also been considered in some studies [@hills_longitudinal_2009; @siew_investigation_2020] but will not be considered here.
+
+[^5]: Note that these are not mutually exclusive.
+
+[^6]: The Providence corpus [@demuth_word-minimality_2006] includes six children and three boys. One child was later diagnosed with Asperger's syndrome, and so is omitted from this analysis. The Lyon corpus [@demuth_katherine_prosodically-conditioned_2008] includes five children (two boys) but one of the datasets (Marilyn) is not fully transcribed and is therefore excluded from this analysis.
+
+[^7]: Though note that accuracy in production of the earliest words is expected [see @ferguson_words_1975; @vihman_phonological_2014]
+
+<!-- ; the lexicon may reach a 'tipping point', whereby there is a processing cost involved with having too much similarity within the network -->
+<!-- Evidence for PAT-like growth may also be interpreted through a framework of phonological neighbourhood density (PND). Studies testing the effects of PND on early lexical learning have shown that higher PND supports acquisition [@jones_children_2019; @storkel_children_2004; @takac_what_2017], as frequently-occurring phoneme combinations may create "well-worn paths" [@dell_structure_1993, p.164] in representation. This research has been expanded to children's productive vocabulary development to show that newly-acquired words in the repertoire tend to be phonologically similar [@coady_phonological_2003; @jones_children_2019; @storkel_children_2004]. Jones and Brandt [-@jones_children_2019] propose that more common phonological structures are easier for infants to remember, and are therefore more likely to be produced accurately. At least in terms of early production, children appear to draw from "more frequent sounds and sound combinations" [@coady_phonological_2003, p.463], which may facilitate the establishment of memory representations to allow more accurate or accessible production of these forms earlier on [@jones_children_2019]. However, this framework doesn't account for the way that infants produce their early words. Differences between Actual and Target data in this analysis show that infants' early word productions are more similar (i.e. more systematic) than we would expect based on an analysis of the Target forms alone, suggesting that mechanisms for early production go beyond the lexical representation [which is known to be target-like even early on in development; @bergelson_young_2018] and are derived from limitations or preferences within the infant's planning and motor capacities, leading to perhaps overly-dense clusters, or neighbourhoods, of similar-sounding forms. The nature of this interaction between infants' own output forms and internal representations should be considered in future work. -->
+
+<!-- Siew and Vitevitch [-@siew_investigation_2020] revealed a significant PAT x Age interaction in both English and Dutch data, whereby higher PAT values predicted learning at earlier timepoints (age 3 years), while lower PAT values predicted learning later on (age 6-7 years). The opposite effect (or no interaction) was observed in some of the data presented here, whereby words with lower PAT values were preferred in earlier production. This presents a compelling view of systematicity over time, as acquisition begins with the item-learning of the earliest-acquired words [see @vihman_phonological_2014], which would instead be driven by features of the input, such as frequency and co-occurrence of certain forms (i.e. PAQ-like growth). Once an initial vocabulary of item-learned words is established, acquisition may take on a more systematic (PAT-like) means of growth, which diminishes later on in development (i.e. post age 3 years).  -->
+
+\newpage
+
+# References
+```{r create_r-references}
+r_refs(file="r-references.bib")
+```
+
+\begingroup
+\setlength{\parindent}{-0.5in}
+\setlength{\leftskip}{0.5in}
+
+<div id="refs"></div>
+\end{longtable}
+\endgroup

@@ -1,0 +1,29 @@
+---
+title: "Supplementary data - Phonological Networks"
+author: "Catherine Laing"
+date: "30/03/2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### S1: Age of production (AoP) ~ connectivity
+
+
+``` {r table-aop-deg-corr, comment=F, message=F, warning = F, echo = F, results = "asis"}
+cap = "S1: Outputs (rho and p values) of AoP ~ degree Spearman's correlation tests for each infant in the dataset."
+apa_table(table.aop.deg.corr.speaker, caption = cap, col_spanners = NULL, digits = 3, placement = "H", font_size = "small")
+```
+
+```{r Figure-AOP-deg-corr, echo=FALSE, fig.cap=cap, fig.pos='H', message=FALSE, warning=FALSE}
+cor_deg_AOP.fig
+cap <- sprintf("S1: Age of production in relation to degree (z-score) of each word in the data. Individual points show individual word types produced in each month, with regression lines showing correlations for each infant. Data type (Actual vs. Target) is indexed by colour; shaded boxes show French data, un-shaded show English data.")
+```
+
+<!-- As shown in Table \@ref(tab:table-model-summary-providence), PAT, but not PAQ, values improved model fit over and above the effects of word frequency, word length and age for both Actual and Target forms in the English data. A model with both PAT and PAQ values included did not significantly improve model fit over and above a model that only included PAT values. In the French data, both PAT and PAQ values improved model fit for both Actual and Target forms, such that the model with both PAT and PAQ values included proved to be the best fit to the data. See Table \@ref(tab:table-model-summary-lyon). This lends tentative support for H1, in that PAT values predicted acquisition in both datasets. Results suggest that PAQ also plays a role in phonological development. -->
+
+<!-- Model outputs are shown in Tables \@ref(tab:table-data-summary-providence) and \@ref(tab:table-data-summary-lyon). Word length, word frequency and age had a significant effect on acquisition across all the data. As we would expect, longer words were acquired later, and more frequent words earlier. Age was a significant predictor of acquisition, likely because over time, as-yet-unknown words are increasingly likely to be learned in the following month. Looking now at the growth values, words with higher PAT values were more likely to be acquired in the English data, and this effect was slightly stronger for Actual (*b*=`r printnum(actual_beta_PAT_P)`, *p* `r printp(actual_p_PAT_P)`) over Target forms (*b*=`r printnum(target_beta_PAT_P)`, *p* `r printp(target_p_PAT_P)`), again supporting H1, with initial support for H3. In the French corpus, results were less clear in relation to H1: *lower* PAQ values predicted acquisition in the Actual data (*b*=`r printnum(actual_beta_PAQ_L)`, *p*=`r printp(actual_p_PAQ_L)`), as well as in the Target data, though here the individual contribution of PAQ was only marginally significant (*b*=`r printnum(target_beta_PAQ_L)`, *p*=`r printp(target_p_PAQ_L)`). PAT values were only significant in the Target data, and again *lower* values predicted acquisition (*b*=`r printnum(target_beta_PAT_L)`, *p* `r printp(target_p_PAT_L)`).  -->
+
+A number of these main effect...
